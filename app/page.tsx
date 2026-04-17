@@ -29,7 +29,7 @@ const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente as
 const s = {
   page:    { minHeight:'100vh', display:'flex', flexDirection:'column' as const, fontFamily:"'DM Sans',sans-serif", background:'#F2F6F8', color:'#1A2B38' },
   topbar:  { background:'#fff', borderBottom:'3px solid #0097A8', padding:'.7rem 1.5rem', display:'flex', alignItems:'center', gap:'1rem', position:'sticky' as const, top:0, zIndex:40, boxShadow:'0 2px 10px rgba(0,151,168,.1)' },
-  logo:    { height:56, objectFit:'contain' as const, maxWidth:200 },
+  logo:    { <height:70 , objectFit:'contain' as const, <maxWidth:240 },
   nav:     { display:'flex', gap:4, flex:1 },
   main:    { flex:1, padding:'1.25rem 1.5rem' },
   row:     { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' },
