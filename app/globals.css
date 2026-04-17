@@ -1,0 +1,17 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --teal: #0097A8; --border: #DDE5EA; --text: #1A2B38;
+  --muted: #7A919E; --bg: #F2F6F8; --white: #fff;
+  --red: #E74C3C; --org: #E67E22; --grn: #27AE60;
+  --blu: #2980B9; --pur: #8E44AD;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); }
+input, select, textarea, button { font-family: inherit; }
+.badge { display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap; }
+.b-ea{background:#E0F5F7;color:#0097A8} .b-ar{background:#EEF0F3;color:#6B8090}
+.b-dv{background:#FEF5EB;color:#E67E22} .b-ac{background:#EAF7EE;color:#27AE60}
+.b-dq{background:#EAF7EE;color:#27AE60} .b-pp{background:#FEF5EB;color:#E67E22}
+.b-pa{background:#F4EEF9;color:#8E44AD} .b-aa{background:#FDECEA;color:#E74C3C}
+.b-se{background:#FDECEA;color:#C0392B} .b-ft{background:#E0F5F7;color:#0097A8}
+.b-lets{background:#FDECEA;color:#E74C3C} .b-salute{background:#FEF5EB;color:#E67E22}
+.b-ebec{background:#EAF3FD;color:#2980B9}
