@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Pencil, Trash2, Download, X } from 'lucide-react'
 import { api, Demanda, DemandaInput, fmtR, fmtN } from './services/api'
 
-type Tipo = 'lets' | 'vix' | 'cobr'
+type Tipo = 'lets' | 'vix' | 'cobr' | 'avarias'
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
   'Em andamento':      { bg:'#E0F5F7', color:'#0097A8' },
@@ -11,6 +11,7 @@ const ST_MAP: Record<string, { bg: string; color: string }> = {
   'Acordo realizado':  { bg:'#EAF7EE', color:'#27AE60' },
   'Débito quitado':    { bg:'#EAF7EE', color:'#27AE60' },
   'Arquivado':         { bg:'#EEF0F3', color:'#6B8090' },
+  'Acordo liquidado':  { bg:'#EAF7EE', color:'#27AE60' },
   'Devolvido':         { bg:'#FEF5EB', color:'#E67E22' },
   'Pré-processual':    { bg:'#FEF5EB', color:'#E67E22' },
   'Pendente assinatura':{ bg:'#F4EEF9', color:'#8E44AD' },
@@ -25,12 +26,13 @@ const EMP_MAP: Record<string, { bg: string; color: string }> = {
 const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
 const ST_LETS = ['Em andamento','Acordo realizado','Arquivado','Devolvido']
 const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
-const ST_COBR = ['Em tratativa','Acordo realizado','Arquivado','Sem êxito']
+const ST_COBR = ['Em tratativa','Acordo realizado','Acordo liquidado','Arquivado','Sem êxito']
 
 const TABS: { id: Tipo; label: string }[] = [
-  { id: 'lets', label: "Let's" },
-  { id: 'vix',  label: 'Vix - 1' },
-  { id: 'cobr', label: 'Vix - Cobrança' },
+  { id: 'lets',    label: "Let's" },
+  { id: 'vix',     label: 'Vix - 1' },
+  { id: 'cobr',    label: 'Vix - Cobrança' },
+  { id: 'avarias', label: 'Vix - Avarias' },
 ]
 
 const s = {
@@ -110,7 +112,6 @@ export default function Home() {
   useEffect(()=>{load()},[load])
   useEffect(()=>{const t=setInterval(()=>load(),30000);return()=>clearInterval(t)},[load])
 
-  const isVixLike = tipo === 'vix' || tipo === 'cobr'
   const stList = tipo === 'lets' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
 
   const blank = () => ({
@@ -154,7 +155,7 @@ export default function Home() {
   const tot=data.length
   const totVal=tipo==='lets'?data.reduce((s,r)=>s+(r.danos||0),0):data.reduce((s,r)=>s+(r.saldo||0),0)
   const ea=data.filter(r=>r.status==='Em andamento'||r.status==='Em tratativa').length
-  const acFin=data.filter(r=>r.status==='Acordo realizado'||r.status==='Débito quitado').length
+  const acFin=data.filter(r=>r.status==='Acordo realizado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
   const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
   const culpa=data.filter(r=>/culpa do locat/i.test(r.andamento||'')).length
   const semEx=data.filter(r=>/sem êxito/i.test(r.andamento||'')).length
@@ -166,11 +167,20 @@ export default function Home() {
 
   const tabLabel = TABS.find(t=>t.id===tipo)?.label || ''
 
+  const subTitle = () => {
+    if (tipo==='lets') return 'Processos junto a terceiros · LETS · SALUTE · EBEC'
+    if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
+    if (tipo==='cobr') return 'Cobrança V1 · Terceiros'
+    return 'Avarias V1 · Sinistros por terceiros'
+  }
+
   const exportCSV = () => {
     const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','limite','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`roesel_${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
+
+  const showPlaca = tipo==='lets' || tipo==='avarias'
 
   return (
     <div style={s.page}>
@@ -197,7 +207,7 @@ export default function Home() {
         <div style={s.row}>
           <div>
             <h1 style={s.h1}>{tabLabel} — Demandas em Andamento</h1>
-            <p style={s.p}>{tipo==='lets'?'Processos junto a terceiros · LETS · SALUTE · EBEC':tipo==='vix'?'Devedores locatários · Carteira de cobrança VIX':'Cobrança V1 · Terceiros'}</p>
+            <p style={s.p}>{subTitle()}</p>
           </div>
           <button onClick={openNew} style={s.btnTeal}><Plus size={16}/> Nova demanda</button>
         </div>
@@ -225,7 +235,7 @@ export default function Home() {
           <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
           <KPI l="Valor total em tratativa" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
           <KPI l={tipo==='lets'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
-          <KPI l={tipo==='lets'?'Encerradas':'Acordos/Quitados'} v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
+          <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
         <div style={s.g6}>
           <KPI l="Culpa do locatário" v={culpa} c="#E74C3C"/>
@@ -254,21 +264,15 @@ export default function Home() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
-                  {tipo==='lets'?<>
-                    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase',whiteSpace:'nowrap'}}>Placa</th>
-                    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Cliente</th>
-                    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Terceiro</th>
-                    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Empresa</th>
-                    <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Danos</th>
-                    <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Limite</th>
-                  </>:<>
-                    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Devedor</th>
-                    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Telefone</th>
-                    {tipo==='cobr'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Origem</th>}
-                    <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Saldo</th>
-                  </>}
+                  {showPlaca&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase',whiteSpace:'nowrap'}}>Placa V1</th>}
+                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>{tipo==='lets'?'Cliente':'Devedor'}</th>
+                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>{tipo==='lets'?'Terceiro':'Telefone'}</th>
+                  {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Empresa</th>}
+                  {tipo==='avarias'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Placa 3º</th>}
+                  {(tipo==='cobr'||tipo==='avarias')&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Origem</th>}
+                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>{tipo==='lets'?'Danos':'Saldo'}</th>
+                  {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Limite</th>}
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Fato gerador</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Por</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Andamento</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Ações</th>
@@ -281,23 +285,17 @@ export default function Home() {
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
                   return <tr key={r.id} style={{borderBottom:'1px solid #DDE5EA'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
-                    {tipo==='lets'?<>
-                      <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>
-                      <td style={{padding:'7px 11px',maxWidth:130,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{r.cliente||'—'}</td>
-                      <td style={{padding:'7px 11px',maxWidth:110,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{r.terceiro||'—'}</td>
-                      <td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>
-                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.danos)}</td>
-                      <td style={{padding:'7px 11px',textAlign:'right',color:'#7A919E'}}>{fmtN(r.limite)}</td>
-                    </>:<>
-                      <td style={{padding:'7px 11px',maxWidth:170,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{r.devedor||'—'}</td>
-                      <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.telefone||'—'}</td>
-                      {tipo==='cobr'&&<td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.empresa||'—'}</td>}
-                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.saldo)}</td>
-                    </>}
+                    {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
+                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||'—')}</td>
+                    <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
+                    {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
+                    {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
+                    {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.empresa||'—'}</td>}
+                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{tipo==='lets'?fmtN(r.danos):fmtN(r.saldo)}</td>
+                    {tipo==='lets'&&<td style={{padding:'7px 11px',textAlign:'right',color:'#7A919E'}}>{fmtN(r.limite)}</td>}
                     <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
-                    <td style={{padding:'7px 11px'}}><Badge label={r.fato_gerador||'Em tratativa'} bg="#E0F5F7" color="#0097A8"/></td>
                     <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
-                    <td style={{padding:'7px 11px',maxWidth:180,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
+                    <td style={{padding:'7px 11px',maxWidth:200,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
                     <td style={{padding:'7px 11px',whiteSpace:'nowrap'}}>
                       <button onClick={()=>openEdit(r.id)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #DDE5EA',background:'transparent',cursor:'pointer',color:'#7A919E',marginRight:4}}><Pencil size={13}/></button>
                       <button onClick={()=>setConfirmId(r.id)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #FDECEA',background:'transparent',cursor:'pointer',color:'#E74C3C'}}><Trash2 size={13}/></button>
@@ -337,6 +335,18 @@ export default function Home() {
                 <FormField lb="Danos (R$)"><input type="number" step="0.01" style={s.fi} value={form.danos||0} onChange={e=>set('danos',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Limite (R$)"><input type="number" step="0.01" style={s.fi} value={form.limite||0} onChange={e=>set('limite',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <FormField lb="Fato gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
+              </div>
+            ):tipo==='avarias'?(
+              <div style={s.fg}>
+                <FormField lb="Devedor (Nome terceiro)"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
+                <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
+                <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
+                <FormField lb="Placa 3º (Terceiro)"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
+                <FormField lb="Saldo (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Origem da cobrança"><input style={s.fi} value={form.empresa||''} onChange={e=>set('empresa',e.target.value)}/></FormField>
+                <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
