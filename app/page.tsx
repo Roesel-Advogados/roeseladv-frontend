@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Pencil, Trash2, Download, X } from 'lucide-react'
 import { api, Demanda, DemandaInput, fmtR, fmtN } from './services/api'
 
-type Tipo = 'lets' | 'vix'
+type Tipo = 'lets' | 'vix' | 'cobr'
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
   'Em andamento':      { bg:'#E0F5F7', color:'#0097A8' },
@@ -25,6 +25,13 @@ const EMP_MAP: Record<string, { bg: string; color: string }> = {
 const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
 const ST_LETS = ['Em andamento','Acordo realizado','Arquivado','Devolvido']
 const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
+const ST_COBR = ['Em tratativa','Acordo realizado','Arquivado','Sem êxito']
+
+const TABS: { id: Tipo; label: string }[] = [
+  { id: 'lets', label: "Let's" },
+  { id: 'vix',  label: 'Vix - 1' },
+  { id: 'cobr', label: 'Vix - Cobrança' },
+]
 
 const s = {
   page:    { minHeight:'100vh', display:'flex', flexDirection:'column' as const, fontFamily:"'DM Sans',sans-serif", background:'#F2F6F8', color:'#1A2B38' },
@@ -103,7 +110,15 @@ export default function Home() {
   useEffect(()=>{load()},[load])
   useEffect(()=>{const t=setInterval(()=>load(),30000);return()=>clearInterval(t)},[load])
 
-  const blank = () => ({ tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa:'LETS', data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0, status:tipo==='lets'?'Em andamento':'Em tratativa', fato_gerador:'Em tratativa', andamento:'', atualizado_por:user })
+  const isVixLike = tipo === 'vix' || tipo === 'cobr'
+  const stList = tipo === 'lets' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
+
+  const blank = () => ({
+    tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa: tipo === 'lets' ? 'LETS' : '',
+    data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
+    status: tipo === 'lets' ? 'Em andamento' : 'Em tratativa',
+    fato_gerador:'Em tratativa', andamento:'', atualizado_por:user
+  })
 
   const openNew = () => { setForm(blank()); setEditing(null); setModal(true) }
   const openEdit = async (id:number) => {
@@ -149,6 +164,8 @@ export default function Home() {
   const arq=data.filter(r=>/arquivamento/i.test(r.andamento||'')).length
   const empC={LETS:data.filter(r=>r.empresa==='LETS').length,SALUTE:data.filter(r=>r.empresa==='SALUTE').length,EBEC:data.filter(r=>r.empresa==='EBEC').length}
 
+  const tabLabel = TABS.find(t=>t.id===tipo)?.label || ''
+
   const exportCSV = () => {
     const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','limite','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
@@ -160,10 +177,10 @@ export default function Home() {
       <header style={s.topbar}>
         <img src="/logo.jpg" alt="Roesel" style={s.logo} onError={e=>(e.currentTarget.style.display='none')}/>
         <nav style={s.nav}>
-          {(['lets','vix'] as Tipo[]).map(t=>(
-            <button key={t} onClick={()=>{setTipo(t);setSearch('');setFEmp('');setFSt('')}}
-              style={{padding:'.45rem 1.1rem',borderRadius:7,border:'none',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',background:tipo===t?'#0097A8':'transparent',color:tipo===t?'#fff':'#7A919E'}}>
-              {t==='lets'?"Let's":'Vix - 1'}
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>{setTipo(t.id);setSearch('');setFEmp('');setFSt('')}}
+              style={{padding:'.45rem 1.1rem',borderRadius:7,border:'none',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',background:tipo===t.id?'#0097A8':'transparent',color:tipo===t.id?'#fff':'#7A919E'}}>
+              {t.label}
             </button>
           ))}
         </nav>
@@ -179,8 +196,8 @@ export default function Home() {
       <main style={s.main}>
         <div style={s.row}>
           <div>
-            <h1 style={s.h1}>{tipo==='lets'?"Let's — Demandas em Andamento":'Vix - 1 — Demandas em Andamento'}</h1>
-            <p style={s.p}>{tipo==='lets'?'Processos junto a terceiros · LETS · SALUTE · EBEC':'Devedores locatários · Carteira de cobrança VIX'}</p>
+            <h1 style={s.h1}>{tabLabel} — Demandas em Andamento</h1>
+            <p style={s.p}>{tipo==='lets'?'Processos junto a terceiros · LETS · SALUTE · EBEC':tipo==='vix'?'Devedores locatários · Carteira de cobrança VIX':'Cobrança V1 · Terceiros'}</p>
           </div>
           <button onClick={openNew} style={s.btnTeal}><Plus size={16}/> Nova demanda</button>
         </div>
@@ -205,17 +222,17 @@ export default function Home() {
         </div>
 
         <div style={s.g4}>
-          <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} devedores`} c="#0097A8"/>
+          <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
           <KPI l="Valor total em tratativa" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
           <KPI l={tipo==='lets'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
-          <KPI l={tipo==='lets'?'Encerradas':'Débitos quitados'} v={tipo==='lets'?tot-ea:data.filter(r=>r.status==='Débito quitado').length} sv={tipo==='lets'?'arq. + acordo':'confirmados'} c="#27AE60"/>
+          <KPI l={tipo==='lets'?'Encerradas':'Acordos/Quitados'} v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
         <div style={s.g6}>
           <KPI l="Culpa do locatário" v={culpa} c="#E74C3C"/>
           <KPI l="Sem êxito" v={semEx} c="#E67E22"/>
           <KPI l="Pré-processual" v={preProc} c="#8E44AD"/>
           <KPI l="Notif. extrajudicial" v={notif} c="#0097A8"/>
-          <KPI l={tipo==='lets'?'Com seguradora':'Acordo andamento'} v={tipo==='lets'?segur:acAnd} c="#2980B9"/>
+          <KPI l="Com seguradora" v={segur} c="#2980B9"/>
           <KPI l="Arquivamento sugerido" v={arq} c="#27AE60"/>
         </div>
 
@@ -229,7 +246,7 @@ export default function Home() {
             {tipo==='lets'&&<select style={s.inp} value={fEmp} onChange={e=>setFEmp(e.target.value)}><option value="">Todas empresas</option><option>LETS</option><option>SALUTE</option><option>EBEC</option></select>}
             <select style={s.inp} value={fSt} onChange={e=>setFSt(e.target.value)}>
               <option value="">Todos status</option>
-              {(tipo==='lets'?ST_LETS:ST_VIX).map(x=><option key={x}>{x}</option>)}
+              {stList.map(x=><option key={x}>{x}</option>)}
             </select>
             <button onClick={exportCSV} style={s.btnOut}><Download size={13}/> CSV</button>
           </div>
@@ -247,6 +264,7 @@ export default function Home() {
                   </>:<>
                     <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Devedor</th>
                     <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Telefone</th>
+                    {tipo==='cobr'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Origem</th>}
                     <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Saldo</th>
                   </>}
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
@@ -257,8 +275,8 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {loading?<tr><td colSpan={10} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
-                :filtered.length===0?<tr><td colSpan={10} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
+                {loading?<tr><td colSpan={11} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
+                :filtered.length===0?<tr><td colSpan={11} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
                 :filtered.map(r=>{
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
@@ -273,6 +291,7 @@ export default function Home() {
                     </>:<>
                       <td style={{padding:'7px 11px',maxWidth:170,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{r.devedor||'—'}</td>
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.telefone||'—'}</td>
+                      {tipo==='cobr'&&<td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.empresa||'—'}</td>}
                       <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.saldo)}</td>
                     </>}
                     <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
@@ -304,7 +323,7 @@ export default function Home() {
         <div style={s.overlay} onClick={e=>e.target===e.currentTarget&&setModal(false)}>
           <div style={s.modal}>
             <div style={s.mhdr}>
-              <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tipo==='lets'?"Let's":'Vix - 1'}</h3>
+              <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}</h3>
               <button onClick={()=>setModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
             {tipo==='lets'?(
@@ -326,7 +345,8 @@ export default function Home() {
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Saldo (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
-                <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_VIX.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                {tipo==='cobr'&&<FormField lb="Origem da cobrança"><input style={s.fi} value={form.empresa||''} onChange={e=>set('empresa',e.target.value)}/></FormField>}
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Fato gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField></div>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
