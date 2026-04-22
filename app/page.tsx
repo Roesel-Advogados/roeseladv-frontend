@@ -354,7 +354,9 @@ export default function Home() {
                     <td style={{padding:'7px 11px',maxWidth:200,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
                     <td style={{padding:'7px 11px',whiteSpace:'nowrap'}}>
                       <button onClick={()=>openEdit(r.id)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #DDE5EA',background:'transparent',cursor:'pointer',color:'#7A919E',marginRight:4}}><Pencil size={13}/></button>
-                      <button onClick={()=>setConfirmId(r.id)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #FDECEA',background:'transparent',cursor:'pointer',color:'#E74C3C'}}><Trash2 size={13}/></button>
+                      {user === 'Claudiane' && (
+                        <button onClick={()=>setConfirmId(r.id)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #FDECEA',background:'transparent',cursor:'pointer',color:'#E74C3C'}}><Trash2 size={13}/></button>
+                      )}
                     </td>
                   </tr>
                 })}
