@@ -5,6 +5,15 @@ import { api, Demanda, DemandaInput, fmtR, fmtN } from './services/api'
 
 type Tipo = 'lets' | 'vix' | 'cobr' | 'avarias'
 
+const USUARIOS: Record<string, string> = {
+  'claudiane': 'fifi15',
+  'fabiana':   '1803',
+}
+const NOMES: Record<string, string> = {
+  'claudiane': 'Claudiane',
+  'fabiana':   'Fabiana',
+}
+
 const ST_MAP: Record<string, { bg: string; color: string }> = {
   'Em andamento':      { bg:'#E0F5F7', color:'#0097A8' },
   'Em tratativa':      { bg:'#E0F5F7', color:'#0097A8' },
@@ -84,7 +93,52 @@ function FormField({ lb: label, children }: { lb:string; children:React.ReactNod
   return <div><label style={s.lb}>{label}</label>{children}</div>
 }
 
+function LoginScreen({ onLogin }: { onLogin:(nome:string)=>void }) {
+  const [login, setLogin] = useState('')
+  const [senha, setSenha] = useState('')
+  const [erro, setErro] = useState('')
+
+  const handleLogin = () => {
+    const key = login.trim().toLowerCase()
+    if (USUARIOS[key] && USUARIOS[key] === senha) {
+      onLogin(NOMES[key])
+    } else {
+      setErro('Usuário ou senha incorretos.')
+      setTimeout(() => setErro(''), 3000)
+    }
+  }
+
+  return (
+    <div style={{ minHeight:'100vh', background:'#F2F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>
+      <div style={{ background:'#fff', borderRadius:16, padding:'2.5rem 2rem', width:360, boxShadow:'0 8px 40px rgba(0,151,168,.15)', display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
+        <img src="/logo.jpg" alt="Roesel" style={{ height:70, objectFit:'contain', maxWidth:240, marginBottom:8 }} onError={e=>(e.currentTarget.style.display='none')}/>
+        <div style={{ textAlign:'center' }}>
+          <h2 style={{ fontSize:18, fontWeight:700, color:'#1A2B38', margin:0 }}>Sistema de Demandas</h2>
+          <p style={{ fontSize:12, color:'#7A919E', marginTop:4 }}>Roesel Advogados Associados</p>
+        </div>
+        <div style={{ width:'100%', display:'flex', flexDirection:'column', gap:12 }}>
+          <div>
+            <label style={s.lb}>Usuário</label>
+            <input style={{ ...s.fi, fontSize:14 }} placeholder="Digite seu usuário" value={login}
+              onChange={e=>setLogin(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+          </div>
+          <div>
+            <label style={s.lb}>Senha</label>
+            <input type="password" style={{ ...s.fi, fontSize:14 }} placeholder="Digite sua senha" value={senha}
+              onChange={e=>setSenha(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
+          </div>
+          {erro && <p style={{ fontSize:12, color:'#E74C3C', textAlign:'center', margin:0 }}>{erro}</p>}
+          <button onClick={handleLogin} style={{ ...s.btnTeal, justifyContent:'center', width:'100%', padding:'.75rem', fontSize:14, borderRadius:9, marginTop:4 }}>
+            Entrar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Home() {
+  const [logado, setLogado] = useState(false)
   const [tipo, setTipo] = useState<Tipo>('lets')
   const [data, setData] = useState<Demanda[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,8 +163,10 @@ export default function Home() {
     finally { setLoading(false) }
   }, [tipo])
 
-  useEffect(()=>{load()},[load])
-  useEffect(()=>{const t=setInterval(()=>load(),30000);return()=>clearInterval(t)},[load])
+  useEffect(()=>{ if(logado) load() },[load, logado])
+  useEffect(()=>{ if(!logado) return; const t=setInterval(()=>load(),30000);return()=>clearInterval(t) },[load, logado])
+
+  if (!logado) return <LoginScreen onLogin={(nome)=>{ setUser(nome); setLogado(true) }}/>
 
   const stList = tipo === 'lets' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
 
@@ -130,8 +186,8 @@ export default function Home() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      if (editing) await api.atualizar(editing.id, {...form,atualizado_por:user||'Usuário'})
-      else await api.criar({...form,atualizado_por:user||'Usuário'})
+      if (editing) await api.atualizar(editing.id, {...form,atualizado_por:user})
+      else await api.criar({...form,atualizado_por:user})
       setModal(false); showToast(editing?'Atualizada!':'Criada!'); load()
     } catch { showToast('Erro ao salvar',false) }
     finally { setSaving(false) }
@@ -198,8 +254,8 @@ export default function Home() {
           <div style={{width:8,height:8,borderRadius:'50%',background:conn===true?'#27AE60':conn===false?'#E74C3C':'#ccc'}}/>
           <span>{conn===true?'conectado':conn===false?'erro':'conectando...'}</span>
           <span style={{margin:'0 4px'}}>|</span>
-          <span>👤</span>
-          <input style={{...s.inp,width:130}} placeholder="Seu nome..." value={user} onChange={e=>setUser(e.target.value)}/>
+          <span>👤 {user}</span>
+          <button onClick={()=>setLogado(false)} style={{...s.btnOut,padding:'3px 10px',fontSize:11,color:'#E74C3C',borderColor:'#FDECEA'}}>Sair</button>
         </div>
       </header>
 
@@ -343,7 +399,7 @@ export default function Home() {
                 <FormField lb="Devedor (Nome terceiro)"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
-                <FormField lb="Placa 3º (Terceiro)"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
+                <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Saldo (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Origem da cobrança"><input style={s.fi} value={form.empresa||''} onChange={e=>set('empresa',e.target.value)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
