@@ -265,14 +265,12 @@ export default function Home() {
 
   const hoje = new Date()
   const mesAtual = `${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`
-
   const tot=data.length
   const totVal=data.reduce((s,r)=>s+(r.saldo||0),0)
   const totalPagoMes=data.reduce((s,r)=>{
-    const parc = r.parcelas||[]
-    const somaParcMes = parc.filter(p=>p.pago && p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0)
-    const pagoDireto = r.pago && r.data_pagamento?.slice(3)===mesAtual ? (r.valor_pago||0) : 0
-    return s + somaParcMes + pagoDireto
+    const somaParcMes=(r.parcelas||[]).filter(p=>p.pago&&p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0)
+    const pagoDireto=r.pago&&r.data_pagamento?.slice(3)===mesAtual?(r.valor_pago||0):0
+    return s+somaParcMes+pagoDireto
   },0)
   const totalPago=data.reduce((s,r)=>{
     const somaParcelas=(r.parcelas||[]).filter(p=>p.pago).reduce((a,p)=>a+(p.valor||0),0)
@@ -416,7 +414,7 @@ export default function Home() {
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Por</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Andamento</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Ações</th>
+                  {user==='Claudiane'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Ações</th>}
                 </tr>
               </thead>
               <tbody>
@@ -428,7 +426,7 @@ export default function Home() {
                   const atraso = melhorAtraso(r)
                   const parcelas = r.parcelas || []
                   const pagas = parcelas.filter(p=>p.pago).length
-                  return <tr key={r.id} style={{borderBottom:'1px solid #DDE5EA'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
+                  return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
                     <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||'—')}</td>
                     <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
@@ -454,12 +452,9 @@ export default function Home() {
                     <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
                     <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
                     <td style={{padding:'7px 11px',maxWidth:200,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
-                    <td style={{padding:'7px 11px',whiteSpace:'nowrap'}}>
-                      <button onClick={()=>openEdit(r.id)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #DDE5EA',background:'transparent',cursor:'pointer',color:'#7A919E',marginRight:4}}><Pencil size={13}/></button>
-                      {user === 'Claudiane' && (
-                        <button onClick={()=>setConfirmId(r.id)} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #FDECEA',background:'transparent',cursor:'pointer',color:'#E74C3C'}}><Trash2 size={13}/></button>
-                      )}
-                    </td>
+                    {user==='Claudiane'&&<td style={{padding:'7px 11px',whiteSpace:'nowrap'}} onClick={e=>e.stopPropagation()}>
+                      <button onClick={e=>{e.stopPropagation();setConfirmId(r.id)}} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #FDECEA',background:'transparent',cursor:'pointer',color:'#E74C3C'}}><Trash2 size={13}/></button>
+                    </td>}
                   </tr>
                 })}
               </tbody>
