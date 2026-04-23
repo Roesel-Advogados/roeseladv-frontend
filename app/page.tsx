@@ -111,11 +111,7 @@ function LoginScreen({ onLogin }: { onLogin:(nome:string)=>void }) {
   return (
     <div style={{ minHeight:'100vh', background:'#F2F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ background:'#fff', borderRadius:16, padding:'2.5rem 2rem', width:360, boxShadow:'0 8px 40px rgba(0,151,168,.15)', display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
-        <img src="/logo.jpg" alt="Roesel" style={{ height:70, objectFit:'contain', maxWidth:240, marginBottom:8 }} onError={e=>(e.currentTarget.style.display='none')}/>
-        <div style={{ textAlign:'center' }}>
-          <h2 style={{ fontSize:18, fontWeight:700, color:'#1A2B38', margin:0 }}>Sistema de Demandas</h2>
-          <p style={{ fontSize:12, color:'#7A919E', marginTop:4 }}>Roesel Advogados Associados</p>
-        </div>
+        <img src="/logo.jpg" alt="Roesel" style={{ height:140, objectFit:'contain', maxWidth:320, marginBottom:8 }} onError={e=>(e.currentTarget.style.display='none')}/>
         <div style={{ width:'100%', display:'flex', flexDirection:'column', gap:12 }}>
           <div>
             <label style={s.lb}>Usuário</label>
