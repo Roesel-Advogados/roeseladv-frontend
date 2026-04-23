@@ -20,9 +20,14 @@ export interface Demanda {
   atualizado_por?: string
   criado_em?: string
   atualizado_em?: string
+  data_vencimento?: string
+  valor_pago?: number
+  data_pagamento?: string
+  pago?: boolean
+  dias_atraso?: number
 }
 
-export type DemandaInput = Omit<Demanda, 'id' | 'criado_em' | 'atualizado_em'>
+export type DemandaInput = Omit<Demanda, 'id' | 'criado_em' | 'atualizado_em' | 'dias_atraso'>
 
 export const api = {
   async listar(tipo: string): Promise<Demanda[]> {
