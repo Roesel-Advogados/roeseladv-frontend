@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Search, Pencil, Trash2, Download, X } from 'lucide-react'
-import { api, Demanda, DemandaInput, fmtR, fmtN } from './services/api'
+import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 
 type Tipo = 'lets' | 'vix' | 'cobr' | 'avarias'
 
@@ -68,7 +68,7 @@ const s = {
   inp:     { border:'1.5px solid #DDE5EA', borderRadius:7, padding:'5px 10px', fontSize:12, fontFamily:'inherit', outline:'none', background:'#fff', color:'#1A2B38' },
   footer:  { background:'#fff', borderTop:'1px solid #DDE5EA', padding:'.65rem 1.5rem', display:'flex', justifyContent:'space-between', alignItems:'center' },
   overlay: { position:'fixed' as const, inset:0, background:'rgba(0,0,0,.4)', zIndex:50, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:56 },
-  modal:   { background:'#fff', borderRadius:14, width:640, maxWidth:'95vw', maxHeight:'88vh', overflowY:'auto' as const, boxShadow:'0 20px 60px rgba(0,0,0,.2)' },
+  modal:   { background:'#fff', borderRadius:14, width:680, maxWidth:'95vw', maxHeight:'90vh', overflowY:'auto' as const, boxShadow:'0 20px 60px rgba(0,0,0,.2)' },
   mhdr:    { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1rem 1.5rem', borderBottom:'1px solid #DDE5EA', position:'sticky' as const, top:0, background:'#fff', zIndex:1 },
   mfoot:   { display:'flex', gap:8, justifyContent:'flex-end', padding:'1rem 1.5rem', borderTop:'1px solid #DDE5EA', background:'#FAFCFD', position:'sticky' as const, bottom:0 },
   fg:      { display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 14px', padding:'1.25rem 1.5rem' },
@@ -93,6 +93,64 @@ function Badge({ label, bg, color }: { label:string; bg:string; color:string }) 
 
 function FormField({ lb: label, children }: { lb:string; children:React.ReactNode }) {
   return <div><label style={s.lb}>{label}</label>{children}</div>
+}
+
+function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange: (p: Parcela[]) => void }) {
+  const addParcela = () => {
+    const nova: Parcela = { numero: parcelas.length + 1, valor: 0, vencimento: '', pago: false, data_pagamento: '' }
+    onChange([...parcelas, nova])
+  }
+  const removeParcela = (i: number) => onChange(parcelas.filter((_, idx) => idx !== i))
+  const updateParcela = (i: number, key: keyof Parcela, val: any) => {
+    const updated = parcelas.map((p, idx) => {
+      if (idx !== i) return p
+      const novo = { ...p, [key]: val }
+      if (key === 'pago' && val && !novo.data_pagamento) {
+        novo.data_pagamento = new Date().toLocaleDateString('pt-BR')
+      }
+      return novo
+    })
+    onChange(updated)
+  }
+
+  return (
+    <div style={{ gridColumn:'1/-1', border:'1.5px solid #DDE5EA', borderRadius:8, overflow:'hidden' }}>
+      <div style={{ background:'#FAFCFD', padding:'8px 12px', borderBottom:'1px solid #DDE5EA', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <span style={{ fontSize:10, fontWeight:700, color:'#7A919E', textTransform:'uppercase', letterSpacing:'.05em' }}>Parcelas do acordo ({parcelas.length})</span>
+        <button onClick={addParcela} type="button" style={{ ...s.btnTeal, padding:'3px 10px', fontSize:11 }}>+ Parcela</button>
+      </div>
+      {parcelas.length === 0 && <p style={{ padding:'12px', fontSize:12, color:'#7A919E', margin:0 }}>Nenhuma parcela. Clique em + Parcela para adicionar.</p>}
+      {parcelas.map((p, i) => (
+        <div key={i} style={{ display:'grid', gridTemplateColumns:'40px 1fr 1fr 80px 1fr 24px', gap:8, padding:'8px 12px', borderBottom:'1px solid #DDE5EA', alignItems:'center', background: p.pago ? '#F0FFF4' : p.dias_atraso && p.dias_atraso > 0 ? '#FFF5F5' : '#fff' }}>
+          <span style={{ fontSize:11, fontWeight:700, color:'#7A919E' }}>#{p.numero}</span>
+          <div>
+            <label style={{ ...s.lb, marginBottom:2 }}>Valor</label>
+            <input type="number" step="0.01" style={{ ...s.fi, fontSize:12 }} value={p.valor||0} onChange={e=>updateParcela(i,'valor',parseFloat(e.target.value)||0)}/>
+          </div>
+          <div>
+            <label style={{ ...s.lb, marginBottom:2 }}>Vencimento</label>
+            <input style={{ ...s.fi, fontSize:12 }} placeholder="dd/mm/aaaa" value={p.vencimento||''} onChange={e=>updateParcela(i,'vencimento',e.target.value)}/>
+          </div>
+          <div style={{ textAlign:'center' }}>
+            <label style={{ ...s.lb, marginBottom:2 }}>Pago?</label>
+            <input type="checkbox" checked={p.pago||false} onChange={e=>updateParcela(i,'pago',e.target.checked)} style={{ width:16, height:16, cursor:'pointer' }}/>
+          </div>
+          <div>
+            <label style={{ ...s.lb, marginBottom:2 }}>
+              {p.pago ? 'Pago em' : p.dias_atraso && p.dias_atraso > 0 ? `⚠️ ${p.dias_atraso}d atraso` : 'Situação'}
+            </label>
+            {p.pago
+              ? <input style={{ ...s.fi, fontSize:12, background:'#F0FFF4' }} value={p.data_pagamento||''} readOnly/>
+              : <span style={{ fontSize:12, color: p.dias_atraso && p.dias_atraso > 0 ? '#E74C3C' : '#27AE60', fontWeight:600 }}>
+                  {p.dias_atraso && p.dias_atraso > 0 ? 'Em atraso' : 'Em dia'}
+                </span>
+            }
+          </div>
+          <button onClick={()=>removeParcela(i)} type="button" style={{ background:'none', border:'none', cursor:'pointer', color:'#E74C3C', fontSize:16, padding:0 }}>×</button>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function LoginScreen({ onLogin }: { onLogin:(nome:string)=>void }) {
@@ -171,7 +229,7 @@ export default function Home() {
     data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
     status: tipo === 'lets' ? 'Em andamento' : 'Em tratativa',
     fato_gerador:'Em tratativa', andamento:'', atualizado_por:user,
-    data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false
+    data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false, parcelas:[]
   })
 
   const openNew = () => { setForm(blank()); setEditing(null); setModal(true) }
@@ -205,11 +263,21 @@ export default function Home() {
     return true
   })
 
-  const hoje = new Date().toISOString().slice(0,7)
+  const hoje = new Date()
+  const mesAtual = `${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`
+
   const tot=data.length
   const totVal=data.reduce((s,r)=>s+(r.saldo||0),0)
-  const totalPagoMes=data.filter(r=>r.data_pagamento?.slice(3)===hoje.slice(5)+'/'+hoje.slice(0,4)||r.data_pagamento?.startsWith(hoje.slice(8)+'/'+hoje.slice(5)+'/'+hoje.slice(0,4))).reduce((s,r)=>s+(r.valor_pago||0),0)
-  const totalPago=data.reduce((s,r)=>s+(r.valor_pago||0),0)
+  const totalPagoMes=data.reduce((s,r)=>{
+    const parc = r.parcelas||[]
+    const somaParcMes = parc.filter(p=>p.pago && p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0)
+    const pagoDireto = r.pago && r.data_pagamento?.slice(3)===mesAtual ? (r.valor_pago||0) : 0
+    return s + somaParcMes + pagoDireto
+  },0)
+  const totalPago=data.reduce((s,r)=>{
+    const somaParcelas=(r.parcelas||[]).filter(p=>p.pago).reduce((a,p)=>a+(p.valor||0),0)
+    return s+(r.pago?(r.valor_pago||0):0)+somaParcelas
+  },0)
   const ea=data.filter(r=>r.status==='Em andamento'||r.status==='Em tratativa').length
   const acFin=data.filter(r=>r.status==='Acordo fechado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
   const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
@@ -237,15 +305,15 @@ export default function Home() {
 
   const showPlaca = tipo==='lets' || tipo==='avarias'
 
-  // calcula dias de atraso no frontend também
-  const diasAtraso = (r: any) => {
-    if (r.pago || !r.data_vencimento) return 0
-    try {
-      const [d,m,y] = r.data_vencimento.split('/')
-      const venc = new Date(+y,+m-1,+d)
-      const diff = Math.floor((Date.now()-venc.getTime())/(1000*60*60*24))
-      return Math.max(0, diff)
-    } catch { return 0 }
+  const melhorAtraso = (r: Demanda) => {
+    const parcelas = r.parcelas || []
+    if (parcelas.length > 0) {
+      const atrasadas = parcelas.filter(p => !p.pago && (p.dias_atraso||0) > 0)
+      if (atrasadas.length > 0) return { dias: Math.max(...atrasadas.map(p=>p.dias_atraso||0)), parcelas: atrasadas.length }
+      return null
+    }
+    if (!r.pago && r.dias_atraso && r.dias_atraso > 0) return { dias: r.dias_atraso, parcelas: 0 }
+    return null
   }
 
   return (
@@ -343,8 +411,7 @@ export default function Home() {
                   {(tipo==='cobr'||tipo==='avarias')&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Fato Gerador</th>}
                   <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Saldo Devedor</th>
                   {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Limite</th>}
-                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Valor Pago</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Vencimento</th>
+                  <th style={{padding:'8px 11px',textAlign:'center',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Parcelas</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Atraso</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Por</th>
@@ -353,12 +420,14 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {loading?<tr><td colSpan={15} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
-                :filtered.length===0?<tr><td colSpan={15} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
+                {loading?<tr><td colSpan={14} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
+                :filtered.length===0?<tr><td colSpan={14} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
                 :filtered.map(r=>{
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
-                  const atraso = diasAtraso(r)
+                  const atraso = melhorAtraso(r)
+                  const parcelas = r.parcelas || []
+                  const pagas = parcelas.filter(p=>p.pago).length
                   return <tr key={r.id} style={{borderBottom:'1px solid #DDE5EA'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
                     <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||'—')}</td>
@@ -368,14 +437,18 @@ export default function Home() {
                     {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
                     <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.saldo)}</td>
                     {tipo==='lets'&&<td style={{padding:'7px 11px',textAlign:'right',color:'#7A919E'}}>{fmtN(r.limite)}</td>}
-                    <td style={{padding:'7px 11px',textAlign:'right',color:'#27AE60',fontWeight:600}}>{r.valor_pago?fmtN(r.valor_pago):'—'}</td>
-                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.data_vencimento||'—'}</td>
+                    <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
+                      {parcelas.length > 0
+                        ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parcelas.length}</span>
+                        : <span style={{color:'#7A919E'}}>—</span>
+                      }
+                    </td>
                     <td style={{padding:'7px 11px'}}>
-                      {atraso>0
-                        ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>{atraso}d</span>
-                        : r.pago
-                          ? <span style={{background:'#EAF7EE',color:'#27AE60',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>Pago</span>
-                          : <span style={{color:'#7A919E',fontSize:11}}>—</span>
+                      {atraso
+                        ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>
+                            {atraso.parcelas > 0 ? `${atraso.parcelas}p · ` : ''}{atraso.dias}d
+                          </span>
+                        : <span style={{color:'#7A919E',fontSize:11}}>—</span>
                       }
                     </td>
                     <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
@@ -423,15 +496,7 @@ export default function Home() {
                 <FormField lb="Limite (R$)"><input type="number" step="0.01" style={s.fi} value={form.limite||0} onChange={e=>set('limite',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <FormField lb="Data Vencimento (dd/mm/aaaa)"><input style={s.fi} value={form.data_vencimento||''} onChange={e=>set('data_vencimento',e.target.value)}/></FormField>
-                <FormField lb="Valor Pago (R$)"><input type="number" step="0.01" style={s.fi} value={form.valor_pago||0} onChange={e=>set('valor_pago',parseFloat(e.target.value)||0)}/></FormField>
-                <FormField lb="Pago?">
-                  <select style={s.fi} value={form.pago?'sim':'nao'} onChange={e=>set('pago',e.target.value==='sim')}>
-                    <option value="nao">Não</option>
-                    <option value="sim">Sim</option>
-                  </select>
-                </FormField>
-                {form.data_pagamento&&<FormField lb="Data Pagamento"><input style={{...s.fi,background:'#F2F6F8'}} value={form.data_pagamento||''} readOnly/></FormField>}
+                <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):tipo==='avarias'?(
@@ -443,15 +508,7 @@ export default function Home() {
                 <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <FormField lb="Data Vencimento (dd/mm/aaaa)"><input style={s.fi} value={form.data_vencimento||''} onChange={e=>set('data_vencimento',e.target.value)}/></FormField>
-                <FormField lb="Valor Pago (R$)"><input type="number" step="0.01" style={s.fi} value={form.valor_pago||0} onChange={e=>set('valor_pago',parseFloat(e.target.value)||0)}/></FormField>
-                <FormField lb="Pago?">
-                  <select style={s.fi} value={form.pago?'sim':'nao'} onChange={e=>set('pago',e.target.value==='sim')}>
-                    <option value="nao">Não</option>
-                    <option value="sim">Sim</option>
-                  </select>
-                </FormField>
-                {form.data_pagamento&&<FormField lb="Data Pagamento"><input style={{...s.fi,background:'#F2F6F8'}} value={form.data_pagamento||''} readOnly/></FormField>}
+                <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):(
@@ -460,17 +517,8 @@ export default function Home() {
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                {tipo==='cobr'&&<FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>}
-                <FormField lb="Data Vencimento (dd/mm/aaaa)"><input style={s.fi} value={form.data_vencimento||''} onChange={e=>set('data_vencimento',e.target.value)}/></FormField>
-                <FormField lb="Valor Pago (R$)"><input type="number" step="0.01" style={s.fi} value={form.valor_pago||0} onChange={e=>set('valor_pago',parseFloat(e.target.value)||0)}/></FormField>
-                <FormField lb="Pago?">
-                  <select style={s.fi} value={form.pago?'sim':'nao'} onChange={e=>set('pago',e.target.value==='sim')}>
-                    <option value="nao">Não</option>
-                    <option value="sim">Sim</option>
-                  </select>
-                </FormField>
-                {form.data_pagamento&&<FormField lb="Data Pagamento"><input style={{...s.fi,background:'#F2F6F8'}} value={form.data_pagamento||''} readOnly/></FormField>}
-                <div style={{gridColumn:'1/-1'}}><FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField></div>
+                <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             )}

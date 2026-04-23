@@ -1,5 +1,14 @@
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
+export interface Parcela {
+  numero: number
+  valor: number
+  vencimento: string
+  pago: boolean
+  data_pagamento?: string
+  dias_atraso?: number
+}
+
 export interface Demanda {
   id: number
   tipo: string
@@ -25,6 +34,7 @@ export interface Demanda {
   data_pagamento?: string
   pago?: boolean
   dias_atraso?: number
+  parcelas?: Parcela[]
 }
 
 export type DemandaInput = Omit<Demanda, 'id' | 'criado_em' | 'atualizado_em' | 'dias_atraso'>
@@ -44,7 +54,7 @@ export const api = {
     const res = await fetch(`${API}/api/demandas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify({...data, parcelas: JSON.stringify(data.parcelas || [])})
     })
     if (!res.ok) throw new Error('Erro ao criar')
     return res.json()
@@ -53,7 +63,7 @@ export const api = {
     const res = await fetch(`${API}/api/demandas/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify({...data, parcelas: JSON.stringify(data.parcelas || [])})
     })
     if (!res.ok) throw new Error('Erro ao atualizar')
     return res.json()
