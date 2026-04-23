@@ -15,17 +15,19 @@ const NOMES: Record<string, string> = {
 }
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
-  'Em andamento':      { bg:'#E0F5F7', color:'#0097A8' },
-  'Em tratativa':      { bg:'#E0F5F7', color:'#0097A8' },
-  'Acordo realizado':  { bg:'#EAF7EE', color:'#27AE60' },
-  'Débito quitado':    { bg:'#EAF7EE', color:'#27AE60' },
-  'Arquivado':         { bg:'#EEF0F3', color:'#6B8090' },
-  'Acordo liquidado':  { bg:'#EAF7EE', color:'#27AE60' },
-  'Devolvido':         { bg:'#FEF5EB', color:'#E67E22' },
-  'Pré-processual':    { bg:'#FEF5EB', color:'#E67E22' },
-  'Pendente assinatura':{ bg:'#F4EEF9', color:'#8E44AD' },
-  'Acordo em atraso':  { bg:'#FDECEA', color:'#E74C3C' },
-  'Sem êxito':         { bg:'#FDECEA', color:'#C0392B' },
+  'Em andamento':             { bg:'#E0F5F7', color:'#0097A8' },
+  'Em tratativa':             { bg:'#E0F5F7', color:'#0097A8' },
+  'Acordo fechado':           { bg:'#EAF7EE', color:'#27AE60' },
+  'Débito quitado':           { bg:'#EAF7EE', color:'#27AE60' },
+  'Arquivado':                { bg:'#EEF0F3', color:'#6B8090' },
+  'Acordo liquidado':         { bg:'#EAF7EE', color:'#27AE60' },
+  'Devolvido':                { bg:'#FEF5EB', color:'#E67E22' },
+  'Pré-processual':           { bg:'#FEF5EB', color:'#E67E22' },
+  'Pendente assinatura':      { bg:'#F4EEF9', color:'#8E44AD' },
+  'Acordo em atraso':         { bg:'#FDECEA', color:'#E74C3C' },
+  'Sem êxito':                { bg:'#FDECEA', color:'#C0392B' },
+  'Baixado':                  { bg:'#EEF0F3', color:'#6B8090' },
+  'Descumprimento de acordo': { bg:'#FDECEA', color:'#E74C3C' },
 }
 const EMP_MAP: Record<string, { bg: string; color: string }> = {
   'LETS':   { bg:'#FDECEA', color:'#E74C3C' },
@@ -33,9 +35,9 @@ const EMP_MAP: Record<string, { bg: string; color: string }> = {
   'EBEC':   { bg:'#EAF3FD', color:'#2980B9' },
 }
 const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
-const ST_LETS = ['Em andamento','Acordo realizado','Arquivado','Devolvido']
+const ST_LETS = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
 const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
-const ST_COBR = ['Em tratativa','Acordo realizado','Acordo liquidado','Arquivado','Sem êxito']
+const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
 
 const TABS: { id: Tipo; label: string }[] = [
   { id: 'lets',    label: "Let's" },
@@ -97,7 +99,6 @@ function LoginScreen({ onLogin }: { onLogin:(nome:string)=>void }) {
   const [login, setLogin] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
-
   const handleLogin = () => {
     const key = login.trim().toLowerCase()
     if (USUARIOS[key] && USUARIOS[key] === senha) {
@@ -107,7 +108,6 @@ function LoginScreen({ onLogin }: { onLogin:(nome:string)=>void }) {
       setTimeout(() => setErro(''), 3000)
     }
   }
-
   return (
     <div style={{ minHeight:'100vh', background:'#F2F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ background:'#fff', borderRadius:16, padding:'2.5rem 2rem', width:360, boxShadow:'0 8px 40px rgba(0,151,168,.15)', display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
@@ -170,7 +170,8 @@ export default function Home() {
     tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa: tipo === 'lets' ? 'LETS' : '',
     data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
     status: tipo === 'lets' ? 'Em andamento' : 'Em tratativa',
-    fato_gerador:'Em tratativa', andamento:'', atualizado_por:user
+    fato_gerador:'Em tratativa', andamento:'', atualizado_por:user,
+    data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false
   })
 
   const openNew = () => { setForm(blank()); setEditing(null); setModal(true) }
@@ -204,10 +205,13 @@ export default function Home() {
     return true
   })
 
+  const hoje = new Date().toISOString().slice(0,7)
   const tot=data.length
-  const totVal=tipo==='lets'?data.reduce((s,r)=>s+(r.danos||0),0):data.reduce((s,r)=>s+(r.saldo||0),0)
+  const totVal=data.reduce((s,r)=>s+(r.saldo||0),0)
+  const totalPagoMes=data.filter(r=>r.data_pagamento?.slice(3)===hoje.slice(5)+'/'+hoje.slice(0,4)||r.data_pagamento?.startsWith(hoje.slice(8)+'/'+hoje.slice(5)+'/'+hoje.slice(0,4))).reduce((s,r)=>s+(r.valor_pago||0),0)
+  const totalPago=data.reduce((s,r)=>s+(r.valor_pago||0),0)
   const ea=data.filter(r=>r.status==='Em andamento'||r.status==='Em tratativa').length
-  const acFin=data.filter(r=>r.status==='Acordo realizado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
+  const acFin=data.filter(r=>r.status==='Acordo fechado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
   const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
   const culpa=data.filter(r=>/culpa do locat/i.test(r.andamento||'')).length
   const semEx=data.filter(r=>/sem êxito/i.test(r.andamento||'')).length
@@ -218,7 +222,6 @@ export default function Home() {
   const empC={LETS:data.filter(r=>r.empresa==='LETS').length,SALUTE:data.filter(r=>r.empresa==='SALUTE').length,EBEC:data.filter(r=>r.empresa==='EBEC').length}
 
   const tabLabel = TABS.find(t=>t.id===tipo)?.label || ''
-
   const subTitle = () => {
     if (tipo==='lets') return 'Processos junto a terceiros · LETS · SALUTE · EBEC'
     if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
@@ -227,12 +230,23 @@ export default function Home() {
   }
 
   const exportCSV = () => {
-    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','limite','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
+    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','limite','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','data_vencimento','valor_pago','data_pagamento','pago']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`roesel_${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
 
   const showPlaca = tipo==='lets' || tipo==='avarias'
+
+  // calcula dias de atraso no frontend também
+  const diasAtraso = (r: any) => {
+    if (r.pago || !r.data_vencimento) return 0
+    try {
+      const [d,m,y] = r.data_vencimento.split('/')
+      const venc = new Date(+y,+m-1,+d)
+      const diff = Math.floor((Date.now()-venc.getTime())/(1000*60*60*24))
+      return Math.max(0, diff)
+    } catch { return 0 }
+  }
 
   return (
     <div style={s.page}>
@@ -273,7 +287,12 @@ export default function Home() {
             <p style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:4}}>encerrados ou em execução</p>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,flex:1}}>
-            {[{l:'Acordo finalizado',v:acFin,sv:'quitado'},{l:'Acordo em andamento',v:acAnd,sv:'parcelas'},{l:'Valor em tratativa',v:fmtR(totVal),sv:tipo==='lets'?'danos':'saldos'},{l:'Pré-processuais',v:preProc,sv:'em curso'}].map(({l,v,sv})=>(
+            {[
+              {l:'Acordo fechado',v:acFin,sv:'quitado'},
+              {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
+              {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
+              {l:'Pré-processuais',v:preProc,sv:'em curso'}
+            ].map(({l,v,sv})=>(
               <div key={l} style={{background:'rgba(255,255,255,.15)',borderRadius:8,padding:'.65rem .9rem'}}>
                 <p style={{fontSize:10,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>{l}</p>
                 <p style={{fontSize:18,fontWeight:700,color:'#fff'}}>{v}</p>
@@ -285,7 +304,7 @@ export default function Home() {
 
         <div style={s.g4}>
           <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
-          <KPI l="Valor total em tratativa" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
+          <KPI l="Saldo devedor total" v={fmtR(totVal)} sv="soma dos saldos" c="#E67E22"/>
           <KPI l={tipo==='lets'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
@@ -321,9 +340,12 @@ export default function Home() {
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>{tipo==='lets'?'Terceiro':'Telefone'}</th>
                   {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Empresa</th>}
                   {tipo==='avarias'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Placa 3º</th>}
-                  {(tipo==='cobr'||tipo==='avarias')&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Origem</th>}
-                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>{tipo==='lets'?'Danos':'Saldo'}</th>
+                  {(tipo==='cobr'||tipo==='avarias')&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Fato Gerador</th>}
+                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Saldo Devedor</th>
                   {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Limite</th>}
+                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Valor Pago</th>
+                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Vencimento</th>
+                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Atraso</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Por</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Andamento</th>
@@ -331,20 +353,31 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {loading?<tr><td colSpan={11} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
-                :filtered.length===0?<tr><td colSpan={11} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
+                {loading?<tr><td colSpan={15} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
+                :filtered.length===0?<tr><td colSpan={15} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
                 :filtered.map(r=>{
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
+                  const atraso = diasAtraso(r)
                   return <tr key={r.id} style={{borderBottom:'1px solid #DDE5EA'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
                     <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||'—')}</td>
                     <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
                     {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
                     {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
-                    {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.empresa||'—'}</td>}
-                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{tipo==='lets'?fmtN(r.danos):fmtN(r.saldo)}</td>
+                    {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
+                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.saldo)}</td>
                     {tipo==='lets'&&<td style={{padding:'7px 11px',textAlign:'right',color:'#7A919E'}}>{fmtN(r.limite)}</td>}
+                    <td style={{padding:'7px 11px',textAlign:'right',color:'#27AE60',fontWeight:600}}>{r.valor_pago?fmtN(r.valor_pago):'—'}</td>
+                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.data_vencimento||'—'}</td>
+                    <td style={{padding:'7px 11px'}}>
+                      {atraso>0
+                        ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>{atraso}d</span>
+                        : r.pago
+                          ? <span style={{background:'#EAF7EE',color:'#27AE60',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>Pago</span>
+                          : <span style={{color:'#7A919E',fontSize:11}}>—</span>
+                      }
+                    </td>
                     <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
                     <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
                     <td style={{padding:'7px 11px',maxWidth:200,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
@@ -386,10 +419,19 @@ export default function Home() {
                 <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} onChange={e=>set('data_sinistro',e.target.value)}/></FormField>
                 <FormField lb="Terceiro"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Contato"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
-                <FormField lb="Danos (R$)"><input type="number" step="0.01" style={s.fi} value={form.danos||0} onChange={e=>set('danos',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.danos||0} onChange={e=>set('danos',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Limite (R$)"><input type="number" step="0.01" style={s.fi} value={form.limite||0} onChange={e=>set('limite',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <FormField lb="Fato gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <FormField lb="Data Vencimento (dd/mm/aaaa)"><input style={s.fi} value={form.data_vencimento||''} onChange={e=>set('data_vencimento',e.target.value)}/></FormField>
+                <FormField lb="Valor Pago (R$)"><input type="number" step="0.01" style={s.fi} value={form.valor_pago||0} onChange={e=>set('valor_pago',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Pago?">
+                  <select style={s.fi} value={form.pago?'sim':'nao'} onChange={e=>set('pago',e.target.value==='sim')}>
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </select>
+                </FormField>
+                {form.data_pagamento&&<FormField lb="Data Pagamento"><input style={{...s.fi,background:'#F2F6F8'}} value={form.data_pagamento||''} readOnly/></FormField>}
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):tipo==='avarias'?(
@@ -398,20 +440,37 @@ export default function Home() {
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
-                <FormField lb="Saldo (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
-                <FormField lb="Origem da cobrança"><input style={s.fi} value={form.empresa||''} onChange={e=>set('empresa',e.target.value)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <FormField lb="Fato gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <FormField lb="Data Vencimento (dd/mm/aaaa)"><input style={s.fi} value={form.data_vencimento||''} onChange={e=>set('data_vencimento',e.target.value)}/></FormField>
+                <FormField lb="Valor Pago (R$)"><input type="number" step="0.01" style={s.fi} value={form.valor_pago||0} onChange={e=>set('valor_pago',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Pago?">
+                  <select style={s.fi} value={form.pago?'sim':'nao'} onChange={e=>set('pago',e.target.value==='sim')}>
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </select>
+                </FormField>
+                {form.data_pagamento&&<FormField lb="Data Pagamento"><input style={{...s.fi,background:'#F2F6F8'}} value={form.data_pagamento||''} readOnly/></FormField>}
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):(
               <div style={s.fg}>
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
-                <FormField lb="Saldo (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                {tipo==='cobr'&&<FormField lb="Origem da cobrança"><input style={s.fi} value={form.empresa||''} onChange={e=>set('empresa',e.target.value)}/></FormField>}
-                <div style={{gridColumn:'1/-1'}}><FormField lb="Fato gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField></div>
+                {tipo==='cobr'&&<FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>}
+                <FormField lb="Data Vencimento (dd/mm/aaaa)"><input style={s.fi} value={form.data_vencimento||''} onChange={e=>set('data_vencimento',e.target.value)}/></FormField>
+                <FormField lb="Valor Pago (R$)"><input type="number" step="0.01" style={s.fi} value={form.valor_pago||0} onChange={e=>set('valor_pago',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Pago?">
+                  <select style={s.fi} value={form.pago?'sim':'nao'} onChange={e=>set('pago',e.target.value==='sim')}>
+                    <option value="nao">Não</option>
+                    <option value="sim">Sim</option>
+                  </select>
+                </FormField>
+                {form.data_pagamento&&<FormField lb="Data Pagamento"><input style={{...s.fi,background:'#F2F6F8'}} value={form.data_pagamento||''} readOnly/></FormField>}
+                <div style={{gridColumn:'1/-1'}}><FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField></div>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             )}
