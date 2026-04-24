@@ -78,6 +78,14 @@ const s = {
   lb:      { display:'block', fontSize:10, fontWeight:600, color:'#7A919E', textTransform:'uppercase' as const, letterSpacing:'.05em', marginBottom:4 },
 }
 
+// Máscara de data dd/mm/aaaa
+function maskDate(val: string): string {
+  const digits = val.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0,2)}/${digits.slice(2)}`
+  return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
+}
+
 function KPI({ l, v, sv, c }: { l:string; v:string|number; sv?:string; c:string }) {
   return (
     <div style={s.kpi}>
@@ -114,6 +122,10 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
     })
     onChange(updated)
   }
+  const commitValor = (i: number, raw: string) => {
+    const num = parseFloat(raw.replace(',', '.')) || 0
+    updateParcela(i, 'valor', num)
+  }
   return (
     <div style={{ gridColumn:'1/-1', border:'1.5px solid #DDE5EA', borderRadius:8, overflow:'hidden' }}>
       <div style={{ background:'#FAFCFD', padding:'8px 12px', borderBottom:'1px solid #DDE5EA', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -130,15 +142,20 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
               type="text"
               inputMode="decimal"
               style={{ ...s.fi, fontSize:12 }}
-              value={p.valor||''}
+              defaultValue={p.valor||''}
               placeholder="0,00"
-              onChange={e=>updateParcela(i,'valor',e.target.value)}
-              onBlur={e=>updateParcela(i,'valor',parseFloat(e.target.value.replace(',','.'))||0)}
+              key={`val-${i}-${p.valor}`}
+              onBlur={e=>commitValor(i, e.target.value)}
             />
           </div>
           <div>
             <label style={{ ...s.lb, marginBottom:2 }}>Vencimento</label>
-            <input style={{ ...s.fi, fontSize:12 }} placeholder="dd/mm/aaaa" value={p.vencimento||''} onChange={e=>updateParcela(i,'vencimento',e.target.value)}/>
+            <input
+              style={{ ...s.fi, fontSize:12 }}
+              placeholder="dd/mm/aaaa"
+              value={p.vencimento||''}
+              onChange={e=>updateParcela(i,'vencimento', maskDate(e.target.value))}
+            />
           </div>
           <div style={{ textAlign:'center' }}>
             <label style={{ ...s.lb, marginBottom:2 }}>Pago?</label>
@@ -250,8 +267,18 @@ export default function Home() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      if (editing) await api.atualizar(editing.id, {...form,atualizado_por:user})
-      else await api.criar({...form,atualizado_por:user})
+      const payload = {
+        ...form,
+        atualizado_por: user,
+        danos: parseFloat(String(form.danos).replace(',','.')) || 0,
+        saldo: parseFloat(String(form.saldo).replace(',','.')) || 0,
+        parcelas: (form.parcelas||[]).map((p:any) => ({
+          ...p,
+          valor: parseFloat(String(p.valor).replace(',','.')) || 0,
+        }))
+      }
+      if (editing) await api.atualizar(editing.id, payload)
+      else await api.criar(payload)
       setModal(false); showToast(editing?'Atualizada!':'Criada!'); load()
     } catch { showToast('Erro ao salvar',false) }
     finally { setSaving(false) }
@@ -491,7 +518,7 @@ export default function Home() {
                 <FormField lb="Placa"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Empresa"><select style={s.fi} value={form.empresa||'LETS'} onChange={e=>set('empresa',e.target.value)}><option>LETS</option><option>SALUTE</option><option>EBEC</option></select></FormField>
                 <FormField lb="Cliente"><input style={s.fi} value={form.cliente||''} onChange={e=>set('cliente',e.target.value)}/></FormField>
-                <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} onChange={e=>set('data_sinistro',e.target.value)}/></FormField>
+                <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Terceiro"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Contato"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
                 <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',parseFloat(e.target.value.replace(',','.'))||0)}/></FormField>
