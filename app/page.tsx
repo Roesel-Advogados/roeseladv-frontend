@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, Download, X } from 'lucide-react'
+import { Plus, Search, Trash2, Download, X } from 'lucide-react'
 import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 
 type Tipo = 'lets' | 'vix' | 'cobr' | 'avarias'
@@ -78,12 +78,15 @@ const s = {
   lb:      { display:'block', fontSize:10, fontWeight:600, color:'#7A919E', textTransform:'uppercase' as const, letterSpacing:'.05em', marginBottom:4 },
 }
 
-// Máscara de data dd/mm/aaaa
 function maskDate(val: string): string {
   const digits = val.replace(/\D/g, '').slice(0, 8)
   if (digits.length <= 2) return digits
   if (digits.length <= 4) return `${digits.slice(0,2)}/${digits.slice(2)}`
   return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
+}
+
+function toNum(v: any): number {
+  return parseFloat(String(v||'0').replace(',','.')) || 0
 }
 
 function KPI({ l, v, sv, c }: { l:string; v:string|number; sv?:string; c:string }) {
@@ -106,11 +109,24 @@ function FormField({ lb: label, children }: { lb:string; children:React.ReactNod
 }
 
 function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange: (p: Parcela[]) => void }) {
+  // estado local para rastrear valores brutos (string) enquanto o usuário digita
+  const [rawVals, setRawVals] = useState<string[]>(() => parcelas.map(p => String(p.valor||'')))
+
+  useEffect(() => {
+    setRawVals(parcelas.map(p => String(p.valor||'')))
+  }, [parcelas.length])
+
   const addParcela = () => {
     const nova: Parcela = { numero: parcelas.length + 1, valor: 0, vencimento: '', pago: false, data_pagamento: '' }
+    setRawVals(prev => [...prev, ''])
     onChange([...parcelas, nova])
   }
-  const removeParcela = (i: number) => onChange(parcelas.filter((_, idx) => idx !== i))
+
+  const removeParcela = (i: number) => {
+    setRawVals(prev => prev.filter((_, idx) => idx !== i))
+    onChange(parcelas.filter((_, idx) => idx !== i))
+  }
+
   const updateParcela = (i: number, key: keyof Parcela, val: any) => {
     const updated = parcelas.map((p, idx) => {
       if (idx !== i) return p
@@ -122,10 +138,13 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
     })
     onChange(updated)
   }
+
   const commitValor = (i: number, raw: string) => {
-    const num = parseFloat(raw.replace(',', '.')) || 0
+    const num = toNum(raw)
+    setRawVals(prev => { const n=[...prev]; n[i]=String(num); return n })
     updateParcela(i, 'valor', num)
   }
+
   return (
     <div style={{ gridColumn:'1/-1', border:'1.5px solid #DDE5EA', borderRadius:8, overflow:'hidden' }}>
       <div style={{ background:'#FAFCFD', padding:'8px 12px', borderBottom:'1px solid #DDE5EA', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -142,10 +161,10 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
               type="text"
               inputMode="decimal"
               style={{ ...s.fi, fontSize:12 }}
-              defaultValue={p.valor||''}
+              value={rawVals[i]??''}
               placeholder="0,00"
-              key={`val-${i}-${p.valor}`}
-              onBlur={e=>commitValor(i, e.target.value)}
+              onChange={e => { const n=[...rawVals]; n[i]=e.target.value; setRawVals(n) }}
+              onBlur={e => commitValor(i, e.target.value)}
             />
           </div>
           <div>
@@ -233,6 +252,8 @@ export default function Home() {
   const [user, setUser] = useState('')
   const [toast, setToast] = useState<{ msg:string; ok:boolean } | null>(null)
   const [conn, setConn] = useState<boolean | null>(null)
+  const parcelasRef = useState<Parcela[]>([])[0]
+  const [parcelasLive, setParcelasLive] = useState<Parcela[]>([])
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
@@ -258,9 +279,22 @@ export default function Home() {
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false, parcelas:[]
   })
 
-  const openNew = () => { setForm(blank()); setEditing(null); setModal(true) }
+  const openNew = () => {
+    const b = blank()
+    setForm(b)
+    setParcelasLive([])
+    setEditing(null)
+    setModal(true)
+  }
+
   const openEdit = async (id:number) => {
-    try { const d = await api.buscar(id); setForm({...d,atualizado_por:user}); setEditing(d); setModal(true) }
+    try {
+      const d = await api.buscar(id)
+      setForm({...d, atualizado_por:user})
+      setParcelasLive(d.parcelas||[])
+      setEditing(d)
+      setModal(true)
+    }
     catch { showToast('Erro ao carregar',false) }
   }
 
@@ -270,17 +304,22 @@ export default function Home() {
       const payload = {
         ...form,
         atualizado_por: user,
-        danos: parseFloat(String(form.danos).replace(',','.')) || 0,
-        saldo: parseFloat(String(form.saldo).replace(',','.')) || 0,
-        parcelas: (form.parcelas||[]).map((p:any) => ({
+        danos: toNum(form.danos),
+        saldo: toNum(form.saldo),
+        parcelas: parcelasLive.map((p:any) => ({
           ...p,
-          valor: parseFloat(String(p.valor).replace(',','.')) || 0,
+          valor: toNum(p.valor),
         }))
       }
       if (editing) await api.atualizar(editing.id, payload)
       else await api.criar(payload)
-      setModal(false); showToast(editing?'Atualizada!':'Criada!'); load()
-    } catch { showToast('Erro ao salvar',false) }
+      setModal(false)
+      showToast(editing?'Atualizada!':'Criada!')
+      load()
+    } catch(e) {
+      console.error(e)
+      showToast('Erro ao salvar',false)
+    }
     finally { setSaving(false) }
   }
 
@@ -332,7 +371,7 @@ export default function Home() {
   }
 
   const exportCSV = () => {
-    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','limite','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','data_vencimento','valor_pago','data_pagamento','pago']
+    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`roesel_${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
@@ -521,10 +560,10 @@ export default function Home() {
                 <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Terceiro"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Contato"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',parseFloat(e.target.value.replace(',','.'))||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
+                <ParcelasEditor parcelas={parcelasLive} onChange={setParcelasLive}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):tipo==='avarias'?(
@@ -533,20 +572,20 @@ export default function Home() {
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',parseFloat(e.target.value.replace(',','.'))||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
+                <ParcelasEditor parcelas={parcelasLive} onChange={setParcelasLive}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):(
               <div style={s.fg}>
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',parseFloat(e.target.value.replace(',','.'))||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
+                <ParcelasEditor parcelas={parcelasLive} onChange={setParcelasLive}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             )}
