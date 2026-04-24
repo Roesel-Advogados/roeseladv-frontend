@@ -408,7 +408,6 @@ export default function Home() {
                   {tipo==='avarias'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Placa 3º</th>}
                   {(tipo==='cobr'||tipo==='avarias')&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Fato Gerador</th>}
                   <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Saldo Devedor</th>
-                  {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Limite</th>}
                   <th style={{padding:'8px 11px',textAlign:'center',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Parcelas</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Atraso</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
@@ -418,8 +417,8 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {loading?<tr><td colSpan={14} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
-                :filtered.length===0?<tr><td colSpan={14} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
+                {loading?<tr><td colSpan={13} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
+                :filtered.length===0?<tr><td colSpan={13} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
                 :filtered.map(r=>{
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
@@ -434,7 +433,6 @@ export default function Home() {
                     {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
                     {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
                     <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.saldo)}</td>
-                    {tipo==='lets'&&<td style={{padding:'7px 11px',textAlign:'right',color:'#7A919E'}}>{fmtN(r.limite)}</td>}
                     <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
                       {parcelas.length > 0
                         ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parcelas.length}</span>
@@ -488,7 +486,6 @@ export default function Home() {
                 <FormField lb="Terceiro"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Contato"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
                 <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.danos||0} onChange={e=>set('danos',parseFloat(e.target.value)||0)}/></FormField>
-                <FormField lb="Limite (R$)"><input type="number" step="0.01" style={s.fi} value={form.limite||0} onChange={e=>set('limite',parseFloat(e.target.value)||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
