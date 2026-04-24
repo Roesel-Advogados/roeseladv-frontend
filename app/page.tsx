@@ -8,10 +8,12 @@ type Tipo = 'lets' | 'vix' | 'cobr' | 'avarias'
 const USUARIOS: Record<string, string> = {
   'claudiane': 'fifi15',
   'fabiana':   '1803',
+  'vix':       'Vix2026',
 }
 const NOMES: Record<string, string> = {
   'claudiane': 'Claudiane',
   'fabiana':   'Fabiana',
+  'vix':       'Vix',
 }
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
