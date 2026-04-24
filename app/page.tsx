@@ -124,7 +124,15 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
           <span style={{ fontSize:11, fontWeight:700, color:'#7A919E' }}>#{p.numero}</span>
           <div>
             <label style={{ ...s.lb, marginBottom:2 }}>Valor</label>
-            <input type="number" step="0.01" style={{ ...s.fi, fontSize:12 }} value={p.valor||0} onChange={e=>updateParcela(i,'valor',parseFloat(e.target.value)||0)}/>
+            <input
+              type="text"
+              inputMode="decimal"
+              style={{ ...s.fi, fontSize:12 }}
+              value={p.valor||''}
+              placeholder="0,00"
+              onChange={e=>updateParcela(i,'valor',e.target.value)}
+              onBlur={e=>updateParcela(i,'valor',parseFloat(e.target.value.replace(',','.'))||0)}
+            />
           </div>
           <div>
             <label style={{ ...s.lb, marginBottom:2 }}>Vencimento</label>
@@ -484,7 +492,7 @@ export default function Home() {
                 <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} onChange={e=>set('data_sinistro',e.target.value)}/></FormField>
                 <FormField lb="Terceiro"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Contato"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.danos||0} onChange={e=>set('danos',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',parseFloat(e.target.value.replace(',','.'))||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
@@ -496,7 +504,7 @@ export default function Home() {
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',parseFloat(e.target.value.replace(',','.'))||0)}/></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
@@ -506,7 +514,7 @@ export default function Home() {
               <div style={s.fg}>
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="number" step="0.01" style={s.fi} value={form.saldo||0} onChange={e=>set('saldo',parseFloat(e.target.value)||0)}/></FormField>
+                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',parseFloat(e.target.value.replace(',','.'))||0)}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={form.parcelas||[]} onChange={p=>set('parcelas',p)}/>
