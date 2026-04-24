@@ -112,7 +112,6 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
     })
     onChange(updated)
   }
-
   return (
     <div style={{ gridColumn:'1/-1', border:'1.5px solid #DDE5EA', borderRadius:8, overflow:'hidden' }}>
       <div style={{ background:'#FAFCFD', padding:'8px 12px', borderBottom:'1px solid #DDE5EA', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -266,7 +265,7 @@ export default function Home() {
   const hoje = new Date()
   const mesAtual = `${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`
   const tot=data.length
-  const totVal=data.reduce((s,r)=>s+(r.saldo||0),0)
+  const totVal=data.reduce((s,r)=>s+(tipo==='lets'?(r.danos||0):(r.saldo||0)),0)
   const totalPagoMes=data.reduce((s,r)=>{
     const somaParcMes=(r.parcelas||[]).filter(p=>p.pago&&p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0)
     const pagoDireto=r.pago&&r.data_pagamento?.slice(3)===mesAtual?(r.valor_pago||0):0
@@ -432,7 +431,7 @@ export default function Home() {
                     {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
                     {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
                     {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
-                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.saldo)}</td>
+                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'?r.danos:r.saldo)}</td>
                     <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
                       {parcelas.length > 0
                         ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parcelas.length}</span>
