@@ -109,12 +109,7 @@ function FormField({ lb: label, children }: { lb:string; children:React.ReactNod
 }
 
 function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange: (p: Parcela[]) => void }) {
-  // estado local para rastrear valores brutos (string) enquanto o usuário digita
   const [rawVals, setRawVals] = useState<string[]>(() => parcelas.map(p => String(p.valor||'')))
-
-  useEffect(() => {
-    setRawVals(parcelas.map(p => String(p.valor||'')))
-  }, [parcelas.length])
 
   const addParcela = () => {
     const nova: Parcela = { numero: parcelas.length + 1, valor: 0, vencimento: '', pago: false, data_pagamento: '' }
@@ -157,21 +152,15 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
           <span style={{ fontSize:11, fontWeight:700, color:'#7A919E' }}>#{p.numero}</span>
           <div>
             <label style={{ ...s.lb, marginBottom:2 }}>Valor</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              style={{ ...s.fi, fontSize:12 }}
-              value={rawVals[i]??''}
-              placeholder="0,00"
+            <input type="text" inputMode="decimal" style={{ ...s.fi, fontSize:12 }}
+              value={rawVals[i]??''} placeholder="0,00"
               onChange={e => { const n=[...rawVals]; n[i]=e.target.value; setRawVals(n) }}
               onBlur={e => commitValor(i, e.target.value)}
             />
           </div>
           <div>
             <label style={{ ...s.lb, marginBottom:2 }}>Vencimento</label>
-            <input
-              style={{ ...s.fi, fontSize:12 }}
-              placeholder="dd/mm/aaaa"
+            <input style={{ ...s.fi, fontSize:12 }} placeholder="dd/mm/aaaa"
               value={p.vencimento||''}
               onChange={e=>updateParcela(i,'vencimento', maskDate(e.target.value))}
             />
@@ -247,13 +236,12 @@ export default function Home() {
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Demanda | null>(null)
   const [form, setForm] = useState<any>({})
+  const [parcelas, setParcelas] = useState<Parcela[]>([])
   const [saving, setSaving] = useState(false)
   const [confirmId, setConfirmId] = useState<number | null>(null)
   const [user, setUser] = useState('')
   const [toast, setToast] = useState<{ msg:string; ok:boolean } | null>(null)
   const [conn, setConn] = useState<boolean | null>(null)
-  const parcelasRef = useState<Parcela[]>([])[0]
-  const [parcelasLive, setParcelasLive] = useState<Parcela[]>([])
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
@@ -276,22 +264,16 @@ export default function Home() {
     data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
     status: tipo === 'lets' ? 'Em andamento' : 'Em tratativa',
     fato_gerador:'Em tratativa', andamento:'', atualizado_por:user,
-    data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false, parcelas:[]
+    data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
   })
 
-  const openNew = () => {
-    const b = blank()
-    setForm(b)
-    setParcelasLive([])
-    setEditing(null)
-    setModal(true)
-  }
+  const openNew = () => { setForm(blank()); setParcelas([]); setEditing(null); setModal(true) }
 
   const openEdit = async (id:number) => {
     try {
       const d = await api.buscar(id)
       setForm({...d, atualizado_por:user})
-      setParcelasLive(d.parcelas||[])
+      setParcelas(d.parcelas||[])
       setEditing(d)
       setModal(true)
     }
@@ -306,7 +288,7 @@ export default function Home() {
         atualizado_por: user,
         danos: toNum(form.danos),
         saldo: toNum(form.saldo),
-        parcelas: parcelasLive.map((p:any) => ({
+        parcelas: parcelas.map((p:any) => ({
           ...p,
           valor: toNum(p.valor),
         }))
@@ -316,11 +298,11 @@ export default function Home() {
       setModal(false)
       showToast(editing?'Atualizada!':'Criada!')
       load()
-    } catch(e) {
-      console.error(e)
-      showToast('Erro ao salvar',false)
+    } catch(e:any) {
+      showToast('Erro ao salvar: ' + (e?.message||''), false)
+    } finally {
+      setSaving(false)
     }
-    finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -379,9 +361,9 @@ export default function Home() {
   const showPlaca = tipo==='lets' || tipo==='avarias'
 
   const melhorAtraso = (r: Demanda) => {
-    const parcelas = r.parcelas || []
-    if (parcelas.length > 0) {
-      const atrasadas = parcelas.filter(p => !p.pago && (p.dias_atraso||0) > 0)
+    const parc = r.parcelas || []
+    if (parc.length > 0) {
+      const atrasadas = parc.filter(p => !p.pago && (p.dias_atraso||0) > 0)
       if (atrasadas.length > 0) return { dias: Math.max(...atrasadas.map(p=>p.dias_atraso||0)), parcelas: atrasadas.length }
       return null
     }
@@ -498,8 +480,8 @@ export default function Home() {
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
                   const atraso = melhorAtraso(r)
-                  const parcelas = r.parcelas || []
-                  const pagas = parcelas.filter(p=>p.pago).length
+                  const parc = r.parcelas || []
+                  const pagas = parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
                     <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||'—')}</td>
@@ -509,8 +491,8 @@ export default function Home() {
                     {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
                     <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'?r.danos:r.saldo)}</td>
                     <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
-                      {parcelas.length > 0
-                        ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parcelas.length}</span>
+                      {parc.length > 0
+                        ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span>
                         : <span style={{color:'#7A919E'}}>—</span>
                       }
                     </td>
@@ -563,7 +545,7 @@ export default function Home() {
                 <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <ParcelasEditor parcelas={parcelasLive} onChange={setParcelasLive}/>
+                <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):tipo==='avarias'?(
@@ -575,7 +557,7 @@ export default function Home() {
                 <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <ParcelasEditor parcelas={parcelasLive} onChange={setParcelasLive}/>
+                <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             ):(
@@ -585,7 +567,7 @@ export default function Home() {
                 <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <ParcelasEditor parcelas={parcelasLive} onChange={setParcelasLive}/>
+                <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
             )}
