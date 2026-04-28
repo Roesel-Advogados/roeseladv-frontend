@@ -4,7 +4,7 @@ import { Plus, Search, Trash2, Download, X, Upload } from 'lucide-react'
 import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 import * as XLSX from 'xlsx'
 
-type Tipo = 'lets' | 'vix' | 'cobr' | 'avarias'
+type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias'
 
 const USUARIOS: Record<string, string> = {
   'claudiane': 'fifi15',
@@ -44,6 +44,7 @@ const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado',
 
 const TABS: { id: Tipo; label: string }[] = [
   { id: 'lets',    label: "Let's" },
+  { id: 'letspf',  label: "Let's PF" },
   { id: 'vix',     label: 'Vix - 1' },
   { id: 'cobr',    label: 'Vix - Cobrança' },
   { id: 'avarias', label: 'Vix - Avarias' },
@@ -247,8 +248,6 @@ export default function Home() {
   const [user, setUser] = useState('')
   const [toast, setToast] = useState<{ msg:string; ok:boolean } | null>(null)
   const [conn, setConn] = useState<boolean | null>(null)
-
-  // Upload states
   const [uploadModal, setUploadModal] = useState(false)
   const [uploadTipo, setUploadTipo] = useState<Tipo>('lets')
   const [uploadRows, setUploadRows] = useState<any[]>([])
@@ -270,12 +269,12 @@ export default function Home() {
 
   if (!logado) return <LoginScreen onLogin={(nome)=>{ setUser(nome); setLogado(true) }}/>
 
-  const stList = tipo === 'lets' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
+  const stList = tipo === 'lets' || tipo === 'letspf' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
 
   const blank = () => ({
-    tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa: tipo === 'lets' ? 'LETS' : '',
+    tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa: tipo === 'lets' || tipo === 'letspf' ? 'LETS' : '',
     data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
-    status: tipo === 'lets' ? 'Em andamento' : 'Em tratativa',
+    status: tipo === 'lets' || tipo === 'letspf' ? 'Em andamento' : 'Em tratativa',
     fato_gerador:'Em tratativa', andamento:'', atualizado_por:user,
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
   })
@@ -324,7 +323,6 @@ export default function Home() {
     catch { showToast('Erro ao excluir',false) }
   }
 
-  // Excel upload
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -351,17 +349,17 @@ export default function Home() {
           parcelas: [],
           placa: str(row['placa'] ?? row['Placa'] ?? row['PLACA'] ?? ''),
           cliente: str(row['cliente'] ?? row['Cliente'] ?? row['CLIENTE'] ?? ''),
-          terceiro: str(row['terceiro'] ?? row['Terceiro'] ?? row['TERCEIRO'] ?? ''),
+          terceiro: str(row['terceiro'] ?? row['Terceiro'] ?? row['TERCEIRO'] ?? row['Devedor'] ?? row['devedor'] ?? ''),
           contato: str(row['contato'] ?? row['Contato'] ?? row['CONTATO'] ?? ''),
           empresa: str(row['empresa'] ?? row['Empresa'] ?? row['EMPRESA'] ?? ''),
-          data_sinistro: str(row['data_sinistro'] ?? row['Data Sinistro'] ?? row['DATA_SINISTRO'] ?? ''),
-          danos: toNum(row['danos'] ?? row['Danos'] ?? row['saldo_devedor'] ?? row['Saldo Devedor'] ?? 0),
+          data_sinistro: str(row['data_sinistro'] ?? row['Data Sinistro'] ?? row['DATA_SINISTRO'] ?? row['Dt. Vencimento'] ?? ''),
+          danos: toNum(row['danos'] ?? row['Danos'] ?? row['Vl. Título'] ?? row['saldo_devedor'] ?? row['Saldo Devedor'] ?? 0),
           saldo: toNum(row['saldo'] ?? row['Saldo'] ?? row['saldo_devedor'] ?? row['Saldo Devedor'] ?? 0),
           devedor: str(row['devedor'] ?? row['Devedor'] ?? row['DEVEDOR'] ?? ''),
           telefone: str(row['telefone'] ?? row['Telefone'] ?? row['TELEFONE'] ?? ''),
-          status: str(row['status'] ?? row['Status'] ?? row['STATUS'] ?? (uploadTipo === 'lets' ? 'Em andamento' : 'Em tratativa')),
+          status: str(row['status'] ?? row['Status'] ?? row['STATUS'] ?? (uploadTipo === 'lets' || uploadTipo === 'letspf' ? 'Em andamento' : 'Em tratativa')),
           fato_gerador: str(row['fato_gerador'] ?? row['Fato Gerador'] ?? row['FATO_GERADOR'] ?? 'Em tratativa'),
-          andamento: str(row['andamento'] ?? row['Andamento'] ?? row['ANDAMENTO'] ?? ''),
+          andamento: str(row['andamento'] ?? row['Andamento'] ?? row['ANDAMENTO'] ?? row['Observação'] ?? ''),
           limite: 0, data_vencimento: '', valor_pago: 0, data_pagamento: '', pago: false,
         }
         await api.criar(payload)
@@ -389,7 +387,7 @@ export default function Home() {
   const hoje = new Date()
   const mesAtual = `${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`
   const tot=data.length
-  const totVal=data.reduce((s,r)=>s+(tipo==='lets'?(r.danos||0):(r.saldo||0)),0)
+  const totVal=data.reduce((s,r)=>s+(tipo==='lets'||tipo==='letspf'?(r.danos||0):(r.saldo||0)),0)
   const totalPagoMes=data.reduce((s,r)=>{
     const somaParcMes=(r.parcelas||[]).filter(p=>p.pago&&p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0)
     const pagoDireto=r.pago&&r.data_pagamento?.slice(3)===mesAtual?(r.valor_pago||0):0
@@ -413,6 +411,7 @@ export default function Home() {
   const tabLabel = TABS.find(t=>t.id===tipo)?.label || ''
   const subTitle = () => {
     if (tipo==='lets') return 'Processos junto a terceiros · LETS · SALUTE · EBEC'
+    if (tipo==='letspf') return 'Pessoas físicas · Carteira de cobrança Let\'s PF'
     if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
     if (tipo==='cobr') return 'Cobrança V1 · Terceiros'
     return 'Avarias V1 · Sinistros por terceiros'
@@ -497,7 +496,7 @@ export default function Home() {
         <div style={s.g4}>
           <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
           <KPI l="Saldo devedor total" v={fmtR(totVal)} sv="soma dos saldos" c="#E67E22"/>
-          <KPI l={tipo==='lets'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
+          <KPI l={tipo==='lets'||tipo==='letspf'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
         <div style={s.g6}>
@@ -553,12 +552,12 @@ export default function Home() {
                   const pagas = parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
-                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||'—')}</td>
+                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—')}</td>
                     <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
                     {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
                     {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
                     {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
-                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'?r.danos:r.saldo)}</td>
+                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'||tipo==='letspf'?r.danos:r.saldo)}</td>
                     <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
                       {parc.length > 0
                         ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span>
@@ -596,7 +595,6 @@ export default function Home() {
         <p style={{fontSize:11,color:'#7A919E'}}>© 2025</p>
       </footer>
 
-      {/* Modal Importar Excel */}
       {uploadModal&&(
         <div style={{...s.overlay,alignItems:'center',paddingTop:0}}>
           <div style={{background:'#fff',borderRadius:14,width:480,padding:'1.5rem',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
@@ -609,6 +607,7 @@ export default function Home() {
                 <label style={s.lb}>Aba de destino</label>
                 <select style={s.fi} value={uploadTipo} onChange={e=>setUploadTipo(e.target.value as Tipo)}>
                   <option value="lets">Let's</option>
+                  <option value="letspf">Let's PF</option>
                   <option value="vix">Vix - 1</option>
                   <option value="cobr">Vix - Cobrança</option>
                   <option value="avarias">Vix - Avarias</option>
@@ -632,14 +631,13 @@ export default function Home() {
               <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('')}} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Cancelar</button>
               <button onClick={handleUpload} disabled={!uploadRows.length||uploading}
                 style={{...s.btnTeal,opacity:(!uploadRows.length||uploading)?0.6:1}}>
-                {uploading?`Importando...`:`Importar ${uploadRows.length} registros`}
+                {uploading?'Importando...':`Importar ${uploadRows.length} registros`}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal Editar/Novo */}
       {modal&&(
         <div style={s.overlay} onClick={e=>e.target===e.currentTarget&&setModal(false)}>
           <div style={s.modal}>
@@ -647,14 +645,13 @@ export default function Home() {
               <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}</h3>
               <button onClick={()=>setModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
-            {tipo==='lets'?(
+            {tipo==='lets'||tipo==='letspf'?(
               <div style={s.fg}>
-                <FormField lb="Placa"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
-                <FormField lb="Empresa"><select style={s.fi} value={form.empresa||'LETS'} onChange={e=>set('empresa',e.target.value)}><option>LETS</option><option>SALUTE</option><option>EBEC</option></select></FormField>
                 <FormField lb="Cliente"><input style={s.fi} value={form.cliente||''} onChange={e=>set('cliente',e.target.value)}/></FormField>
-                <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro', maskDate(e.target.value))}/></FormField>
-                <FormField lb="Terceiro"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
+                <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
+                <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Contato"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
+                <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
