@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Trash2, Download, X } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Plus, Search, Trash2, Download, X, Upload } from 'lucide-react'
 import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
+import * as XLSX from 'xlsx'
 
 type Tipo = 'lets' | 'vix' | 'cobr' | 'avarias'
 
@@ -87,6 +88,10 @@ function maskDate(val: string): string {
 
 function toNum(v: any): number {
   return parseFloat(String(v||'0').replace(',','.')) || 0
+}
+
+function str(v: any): string {
+  return v == null ? '' : String(v).trim()
 }
 
 function KPI({ l, v, sv, c }: { l:string; v:string|number; sv?:string; c:string }) {
@@ -243,6 +248,14 @@ export default function Home() {
   const [toast, setToast] = useState<{ msg:string; ok:boolean } | null>(null)
   const [conn, setConn] = useState<boolean | null>(null)
 
+  // Upload states
+  const [uploadModal, setUploadModal] = useState(false)
+  const [uploadTipo, setUploadTipo] = useState<Tipo>('lets')
+  const [uploadRows, setUploadRows] = useState<any[]>([])
+  const [uploadFileName, setUploadFileName] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
   const load = useCallback(async () => {
@@ -309,6 +322,59 @@ export default function Home() {
     if (!confirmId) return
     try { await api.deletar(confirmId); setConfirmId(null); showToast('Excluída'); load() }
     catch { showToast('Erro ao excluir',false) }
+  }
+
+  // Excel upload
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const wb = XLSX.read(ev.target?.result, { type: 'binary' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      setUploadRows(rows as any[])
+    }
+    reader.readAsBinaryString(file)
+  }
+
+  const handleUpload = async () => {
+    if (!uploadRows.length) return
+    setUploading(true)
+    let ok = 0, err = 0
+    for (const row of uploadRows) {
+      try {
+        const payload: any = {
+          tipo: uploadTipo,
+          atualizado_por: user,
+          parcelas: [],
+          placa: str(row['placa'] ?? row['Placa'] ?? row['PLACA'] ?? ''),
+          cliente: str(row['cliente'] ?? row['Cliente'] ?? row['CLIENTE'] ?? ''),
+          terceiro: str(row['terceiro'] ?? row['Terceiro'] ?? row['TERCEIRO'] ?? ''),
+          contato: str(row['contato'] ?? row['Contato'] ?? row['CONTATO'] ?? ''),
+          empresa: str(row['empresa'] ?? row['Empresa'] ?? row['EMPRESA'] ?? ''),
+          data_sinistro: str(row['data_sinistro'] ?? row['Data Sinistro'] ?? row['DATA_SINISTRO'] ?? ''),
+          danos: toNum(row['danos'] ?? row['Danos'] ?? row['saldo_devedor'] ?? row['Saldo Devedor'] ?? 0),
+          saldo: toNum(row['saldo'] ?? row['Saldo'] ?? row['saldo_devedor'] ?? row['Saldo Devedor'] ?? 0),
+          devedor: str(row['devedor'] ?? row['Devedor'] ?? row['DEVEDOR'] ?? ''),
+          telefone: str(row['telefone'] ?? row['Telefone'] ?? row['TELEFONE'] ?? ''),
+          status: str(row['status'] ?? row['Status'] ?? row['STATUS'] ?? (uploadTipo === 'lets' ? 'Em andamento' : 'Em tratativa')),
+          fato_gerador: str(row['fato_gerador'] ?? row['Fato Gerador'] ?? row['FATO_GERADOR'] ?? 'Em tratativa'),
+          andamento: str(row['andamento'] ?? row['Andamento'] ?? row['ANDAMENTO'] ?? ''),
+          limite: 0, data_vencimento: '', valor_pago: 0, data_pagamento: '', pago: false,
+        }
+        await api.criar(payload)
+        ok++
+      } catch { err++ }
+    }
+    setUploading(false)
+    setUploadModal(false)
+    setUploadRows([])
+    setUploadFileName('')
+    if (fileRef.current) fileRef.current.value = ''
+    showToast(`${ok} importadas${err > 0 ? `, ${err} erros` : ''}!`, err === 0)
+    if (uploadTipo === tipo) load()
   }
 
   const set = (k:string,v:any) => setForm((p:any)=>({...p,[k]:v}))
@@ -398,7 +464,10 @@ export default function Home() {
             <h1 style={s.h1}>{tabLabel} — Demandas em Andamento</h1>
             <p style={s.p}>{subTitle()}</p>
           </div>
-          <button onClick={openNew} style={s.btnTeal}><Plus size={16}/> Nova demanda</button>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={()=>setUploadModal(true)} style={{...s.btnOut,gap:6}}><Upload size={15}/> Importar Excel</button>
+            <button onClick={openNew} style={s.btnTeal}><Plus size={16}/> Nova demanda</button>
+          </div>
         </div>
 
         <div style={s.feat}>
@@ -527,6 +596,50 @@ export default function Home() {
         <p style={{fontSize:11,color:'#7A919E'}}>© 2025</p>
       </footer>
 
+      {/* Modal Importar Excel */}
+      {uploadModal&&(
+        <div style={{...s.overlay,alignItems:'center',paddingTop:0}}>
+          <div style={{background:'#fff',borderRadius:14,width:480,padding:'1.5rem',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <h3 style={{fontSize:15,fontWeight:700,margin:0}}>Importar Excel</h3>
+              <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('')}} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:14}}>
+              <div>
+                <label style={s.lb}>Aba de destino</label>
+                <select style={s.fi} value={uploadTipo} onChange={e=>setUploadTipo(e.target.value as Tipo)}>
+                  <option value="lets">Let's</option>
+                  <option value="vix">Vix - 1</option>
+                  <option value="cobr">Vix - Cobrança</option>
+                  <option value="avarias">Vix - Avarias</option>
+                </select>
+              </div>
+              <div>
+                <label style={s.lb}>Arquivo Excel (.xlsx)</label>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange}
+                  style={{...s.fi, padding:'6px 10px', cursor:'pointer'}}/>
+              </div>
+              {uploadRows.length > 0 && (
+                <div style={{background:'#EAF7EE',borderRadius:8,padding:'10px 14px',fontSize:13,color:'#27AE60',fontWeight:600}}>
+                  ✅ {uploadRows.length} linhas detectadas em "{uploadFileName}"
+                </div>
+              )}
+              <p style={{fontSize:11,color:'#7A919E',margin:0}}>
+                As colunas da planilha devem seguir o padrão do sistema: <strong>placa, cliente, terceiro, contato, empresa, data_sinistro, danos/saldo, devedor, telefone, status, fato_gerador, andamento</strong>.
+              </p>
+            </div>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:20}}>
+              <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('')}} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Cancelar</button>
+              <button onClick={handleUpload} disabled={!uploadRows.length||uploading}
+                style={{...s.btnTeal,opacity:(!uploadRows.length||uploading)?0.6:1}}>
+                {uploading?`Importando...`:`Importar ${uploadRows.length} registros`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar/Novo */}
       {modal&&(
         <div style={s.overlay} onClick={e=>e.target===e.currentTarget&&setModal(false)}>
           <div style={s.modal}>
