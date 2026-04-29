@@ -35,6 +35,11 @@ export interface Demanda {
   pago?: boolean
   dias_atraso?: number
   parcelas?: Parcela[]
+  data_envio?: string
+  responsavel?: string
+  cpf_cnpj?: string
+  data_evento?: string
+  email?: string
 }
 
 export type DemandaInput = Omit<Demanda, 'id' | 'criado_em' | 'atualizado_em' | 'dias_atraso'>

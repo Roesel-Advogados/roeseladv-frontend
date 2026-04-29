@@ -277,6 +277,7 @@ export default function Home() {
     status: tipo === 'lets' || tipo === 'letspf' ? 'Em andamento' : 'Em tratativa',
     fato_gerador:'Em tratativa', andamento:'', atualizado_por:user,
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
+    data_envio:'', responsavel:'', cpf_cnpj:'', data_evento:'', email:'',
   })
 
   const openNew = () => { setForm(blank()); setParcelas([]); setEditing(null); setModal(true) }
@@ -300,10 +301,7 @@ export default function Home() {
         atualizado_por: user,
         danos: toNum(form.danos),
         saldo: toNum(form.saldo),
-        parcelas: parcelas.map((p:any) => ({
-          ...p,
-          valor: toNum(p.valor),
-        }))
+        parcelas: parcelas.map((p:any) => ({ ...p, valor: toNum(p.valor) }))
       }
       if (editing) await api.atualizar(editing.id, payload)
       else await api.criar(payload)
@@ -312,9 +310,7 @@ export default function Home() {
       load()
     } catch(e:any) {
       showToast('Erro ao salvar: ' + (e?.message||''), false)
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -331,8 +327,33 @@ export default function Home() {
     reader.onload = (ev) => {
       const wb = XLSX.read(ev.target?.result, { type: 'binary' })
       const ws = wb.Sheets[wb.SheetNames[0]]
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
-      setUploadRows(rows as any[])
+      const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+      if (!raw.length) return
+      const firstRow = raw[0]
+      const hasHeader = firstRow.some((v: any) => typeof v === 'string' && isNaN(Number(v)) && v.trim() !== '')
+      const dataRows = hasHeader ? raw.slice(1) : raw
+      const headers = hasHeader ? firstRow : null
+      const mapped = dataRows.filter((r: any[]) => r.some(v => v !== '')).map((row: any[]) => {
+        if (headers) {
+          const obj: any = {}
+          headers.forEach((h: string, i: number) => { obj[h] = row[i] })
+          return obj
+        }
+        return {
+          _pos: true,
+          cliente:       row[1],
+          devedor:       row[3],
+          terceiro:      row[3],
+          telefone:      row[4],
+          email:         row[5],
+          contato:       row[4],
+          danos:         row[11],
+          saldo:         row[12],
+          data_sinistro: row[14],
+          andamento:     row[16],
+        }
+      })
+      setUploadRows(mapped)
     }
     reader.readAsBinaryString(file)
   }
@@ -343,24 +364,32 @@ export default function Home() {
     let ok = 0, err = 0
     for (const row of uploadRows) {
       try {
+        const isPosMap = row._pos
+        let data_sinistro = ''
+        const dtRaw = isPosMap ? row.data_sinistro : (row['data_sinistro'] ?? row['Data Sinistro'] ?? row['Dt. Vencimento'] ?? '')
+        if (dtRaw instanceof Date) data_sinistro = dtRaw.toLocaleDateString('pt-BR')
+        else if (dtRaw) data_sinistro = str(dtRaw)
         const payload: any = {
           tipo: uploadTipo,
           atualizado_por: user,
           parcelas: [],
-          placa: str(row['placa'] ?? row['Placa'] ?? row['PLACA'] ?? ''),
-          cliente: str(row['cliente'] ?? row['Cliente'] ?? row['CLIENTE'] ?? ''),
-          terceiro: str(row['terceiro'] ?? row['Terceiro'] ?? row['TERCEIRO'] ?? row['Devedor'] ?? row['devedor'] ?? ''),
-          contato: str(row['contato'] ?? row['Contato'] ?? row['CONTATO'] ?? ''),
-          empresa: str(row['empresa'] ?? row['Empresa'] ?? row['EMPRESA'] ?? ''),
-          data_sinistro: str(row['data_sinistro'] ?? row['Data Sinistro'] ?? row['DATA_SINISTRO'] ?? row['Dt. Vencimento'] ?? ''),
-          danos: toNum(row['danos'] ?? row['Danos'] ?? row['Vl. Título'] ?? row['saldo_devedor'] ?? row['Saldo Devedor'] ?? 0),
-          saldo: toNum(row['saldo'] ?? row['Saldo'] ?? row['saldo_devedor'] ?? row['Saldo Devedor'] ?? 0),
-          devedor: str(row['devedor'] ?? row['Devedor'] ?? row['DEVEDOR'] ?? ''),
-          telefone: str(row['telefone'] ?? row['Telefone'] ?? row['TELEFONE'] ?? ''),
-          status: str(row['status'] ?? row['Status'] ?? row['STATUS'] ?? (uploadTipo === 'lets' || uploadTipo === 'letspf' ? 'Em andamento' : 'Em tratativa')),
-          fato_gerador: str(row['fato_gerador'] ?? row['Fato Gerador'] ?? row['FATO_GERADOR'] ?? 'Em tratativa'),
-          andamento: str(row['andamento'] ?? row['Andamento'] ?? row['ANDAMENTO'] ?? row['Observação'] ?? ''),
+          placa: str(isPosMap ? '' : (row['placa'] ?? row['Placa'] ?? '')),
+          cliente: str(isPosMap ? row.cliente : (row['cliente'] ?? row['Cliente'] ?? '')),
+          terceiro: str(isPosMap ? row.terceiro : (row['terceiro'] ?? row['Terceiro'] ?? row['Devedor'] ?? row['devedor'] ?? '')),
+          contato: str(isPosMap ? row.contato : (row['contato'] ?? row['Contato'] ?? '')),
+          empresa: str(isPosMap ? '' : (row['empresa'] ?? row['Empresa'] ?? '')),
+          email: str(isPosMap ? row.email : (row['email'] ?? row['Email'] ?? '')),
+          data_sinistro,
+          danos: toNum(isPosMap ? row.danos : (row['danos'] ?? row['Danos'] ?? row['Vl. Título'] ?? 0)),
+          saldo: toNum(isPosMap ? row.saldo : (row['saldo'] ?? row['Saldo'] ?? 0)),
+          devedor: str(isPosMap ? row.devedor : (row['devedor'] ?? row['Devedor'] ?? '')),
+          telefone: str(isPosMap ? row.telefone : (row['telefone'] ?? row['Telefone'] ?? '')),
+          status: str(isPosMap ? 'Em tratativa' : (row['status'] ?? row['Status'] ?? (uploadTipo === 'lets' || uploadTipo === 'letspf' ? 'Em andamento' : 'Em tratativa'))),
+          fato_gerador: str(isPosMap ? 'Em tratativa' : (row['fato_gerador'] ?? row['Fato Gerador'] ?? 'Em tratativa')),
+          andamento: str(isPosMap ? row.andamento : (row['andamento'] ?? row['Andamento'] ?? row['Observação'] ?? '')),
+          cpf_cnpj: str(isPosMap ? (row[2]||'') : (row['cpf_cnpj'] ?? row['CPF/CNPJ'] ?? row['CNPJ/CPF'] ?? '')),
           limite: 0, data_vencimento: '', valor_pago: 0, data_pagamento: '', pago: false,
+          data_envio: '', responsavel: '', data_evento: '',
         }
         await api.criar(payload)
         ok++
@@ -411,14 +440,14 @@ export default function Home() {
   const tabLabel = TABS.find(t=>t.id===tipo)?.label || ''
   const subTitle = () => {
     if (tipo==='lets') return 'Processos junto a terceiros · LETS · SALUTE · EBEC'
-    if (tipo==='letspf') return 'Pessoas físicas · Carteira de cobrança Let\'s PF'
+    if (tipo==='letspf') return "Pessoas físicas · Carteira de cobrança Let's PF"
     if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
     if (tipo==='cobr') return 'Cobrança V1 · Terceiros'
     return 'Avarias V1 · Sinistros por terceiros'
   }
 
   const exportCSV = () => {
-    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
+    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','data_envio','responsavel','cpf_cnpj','data_evento','email']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`roesel_${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
@@ -495,7 +524,7 @@ export default function Home() {
 
         <div style={s.g4}>
           <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
-          <KPI l="Saldo devedor total" v={fmtR(totVal)} sv="soma dos saldos" c="#E67E22"/>
+          <KPI l="Valores a Receber" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
           <KPI l={tipo==='lets'||tipo==='letspf'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
@@ -532,7 +561,7 @@ export default function Home() {
                   {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Empresa</th>}
                   {tipo==='avarias'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Placa 3º</th>}
                   {(tipo==='cobr'||tipo==='avarias')&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Fato Gerador</th>}
-                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Saldo Devedor</th>
+                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Valores a Receber</th>
                   <th style={{padding:'8px 11px',textAlign:'center',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Parcelas</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Atraso</th>
                   <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
@@ -623,9 +652,6 @@ export default function Home() {
                   ✅ {uploadRows.length} linhas detectadas em "{uploadFileName}"
                 </div>
               )}
-              <p style={{fontSize:11,color:'#7A919E',margin:0}}>
-                As colunas da planilha devem seguir o padrão do sistema: <strong>placa, cliente, terceiro, contato, empresa, data_sinistro, danos/saldo, devedor, telefone, status, fato_gerador, andamento</strong>.
-              </p>
             </div>
             <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:20}}>
               <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('')}} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Cancelar</button>
@@ -649,10 +675,13 @@ export default function Home() {
               <div style={s.fg}>
                 <FormField lb="Cliente"><input style={s.fi} value={form.cliente||''} onChange={e=>set('cliente',e.target.value)}/></FormField>
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
+                <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
-                <FormField lb="Contato"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
-                <FormField lb="Data sinistro"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro', maskDate(e.target.value))}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
+                <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
+                <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
+                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
@@ -662,9 +691,14 @@ export default function Home() {
               <div style={s.fg}>
                 <FormField lb="Devedor (Nome terceiro)"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
+                <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
+                <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
+                <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
+                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
+                <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_COBR.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
@@ -674,7 +708,12 @@ export default function Home() {
               <div style={s.fg}>
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
-                <FormField lb="Saldo Devedor (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
+                <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
+                <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
+                <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
+                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
@@ -710,4 +749,3 @@ export default function Home() {
     </div>
   )
 }
-
