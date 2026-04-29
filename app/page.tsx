@@ -257,15 +257,15 @@ export default function Home() {
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try { const d = await api.listar(tipo); setData(d); setConn(true) }
-    catch { setConn(false); showToast('Erro ao carregar',false) }
-    finally { setLoading(false) }
+    catch { setConn(false); if (!silent) showToast('Erro ao carregar',false) }
+    finally { if (!silent) setLoading(false) }
   }, [tipo])
 
   useEffect(()=>{ if(logado) load() },[load, logado])
-  useEffect(()=>{ if(!logado) return; const t=setInterval(()=>load(),30000);return()=>clearInterval(t) },[load, logado])
+  useEffect(()=>{ if(!logado) return; const t=setInterval(()=>load(true),30000);return()=>clearInterval(t) },[load, logado])
 
   if (!logado) return <LoginScreen onLogin={(nome)=>{ setUser(nome); setLogado(true) }}/>
 
