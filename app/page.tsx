@@ -347,6 +347,7 @@ export default function Home() {
           telefone:      row[4],
           email:         row[5],
           contato:       row[4],
+          cpf_cnpj:      row[2],
           danos:         row[11],
           saldo:         row[12],
           data_sinistro: row[14],
@@ -379,6 +380,7 @@ export default function Home() {
           contato: str(isPosMap ? row.contato : (row['contato'] ?? row['Contato'] ?? '')),
           empresa: str(isPosMap ? '' : (row['empresa'] ?? row['Empresa'] ?? '')),
           email: str(isPosMap ? row.email : (row['email'] ?? row['Email'] ?? '')),
+          cpf_cnpj: str(isPosMap ? row.cpf_cnpj : (row['cpf_cnpj'] ?? row['CPF/CNPJ'] ?? row['CNPJ/CPF'] ?? '')),
           data_sinistro,
           danos: toNum(isPosMap ? row.danos : (row['danos'] ?? row['Danos'] ?? row['Vl. Título'] ?? 0)),
           saldo: toNum(isPosMap ? row.saldo : (row['saldo'] ?? row['Saldo'] ?? 0)),
@@ -387,9 +389,10 @@ export default function Home() {
           status: str(isPosMap ? 'Em tratativa' : (row['status'] ?? row['Status'] ?? (uploadTipo === 'lets' || uploadTipo === 'letspf' ? 'Em andamento' : 'Em tratativa'))),
           fato_gerador: str(isPosMap ? 'Em tratativa' : (row['fato_gerador'] ?? row['Fato Gerador'] ?? 'Em tratativa')),
           andamento: str(isPosMap ? row.andamento : (row['andamento'] ?? row['Andamento'] ?? row['Observação'] ?? '')),
-          cpf_cnpj: str(isPosMap ? (row[2]||'') : (row['cpf_cnpj'] ?? row['CPF/CNPJ'] ?? row['CNPJ/CPF'] ?? '')),
+          responsavel: str(isPosMap ? '' : (row['responsavel'] ?? row['Responsável'] ?? '')),
+          data_envio: str(isPosMap ? '' : (row['data_envio'] ?? row['Data Envio'] ?? '')),
+          data_evento: str(isPosMap ? '' : (row['data_evento'] ?? row['Data Evento'] ?? '')),
           limite: 0, data_vencimento: '', valor_pago: 0, data_pagamento: '', pago: false,
-          data_envio: '', responsavel: '', data_evento: '',
         }
         await api.criar(payload)
         ok++
@@ -409,7 +412,7 @@ export default function Home() {
   const filtered = data.filter(r => {
     if (fEmp && r.empresa!==fEmp) return false
     if (fSt && r.status!==fSt) return false
-    if (search) { const q=search.toLowerCase(); if(![r.placa,r.cliente,r.terceiro,r.devedor,r.telefone,r.andamento].some(f=>f?.toLowerCase().includes(q))) return false }
+    if (search) { const q=search.toLowerCase(); if(![r.placa,r.cliente,r.terceiro,r.devedor,r.telefone,r.andamento,r.cpf_cnpj,r.email].some(f=>f?.toLowerCase().includes(q))) return false }
     return true
   })
 
@@ -447,12 +450,13 @@ export default function Home() {
   }
 
   const exportCSV = () => {
-    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','data_envio','responsavel','cpf_cnpj','data_evento','email']
+    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','cpf_cnpj','email','responsavel','data_evento','data_envio']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`roesel_${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
 
   const showPlaca = tipo==='lets' || tipo==='avarias'
+  const isLetsPF = tipo === 'letspf'
 
   const melhorAtraso = (r: Demanda) => {
     const parc = r.parcelas || []
@@ -464,6 +468,10 @@ export default function Home() {
     if (!r.pago && r.dias_atraso && r.dias_atraso > 0) return { dias: r.dias_atraso, parcelas: 0 }
     return null
   }
+
+  const th = (label: string) => (
+    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase' as const,whiteSpace:'nowrap' as const}}>{label}</th>
+  )
 
   return (
     <div style={s.page}>
@@ -542,7 +550,7 @@ export default function Home() {
             <span style={{fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase',letterSpacing:'.1em',flex:1}}>Todas as demandas</span>
             <div style={{position:'relative'}}>
               <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#7A919E'}}/>
-              <input style={{...s.inp,paddingLeft:30,width:176}} placeholder={tipo==='lets'?'Placa, cliente...':'Buscar devedor...'} value={search} onChange={e=>setSearch(e.target.value)}/>
+              <input style={{...s.inp,paddingLeft:30,width:176}} placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
             {tipo==='lets'&&<select style={s.inp} value={fEmp} onChange={e=>setFEmp(e.target.value)}><option value="">Todas empresas</option><option>LETS</option><option>SALUTE</option><option>EBEC</option></select>}
             <select style={s.inp} value={fSt} onChange={e=>setFSt(e.target.value)}>
@@ -555,37 +563,50 @@ export default function Home() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
-                  {showPlaca&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase',whiteSpace:'nowrap'}}>Placa V1</th>}
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>{tipo==='lets'?'Cliente':'Devedor'}</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>{tipo==='lets'?'Terceiro':'Telefone'}</th>
-                  {tipo==='lets'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Empresa</th>}
-                  {tipo==='avarias'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Placa 3º</th>}
-                  {(tipo==='cobr'||tipo==='avarias')&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Fato Gerador</th>}
-                  <th style={{padding:'8px 11px',textAlign:'right',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Valores a Receber</th>
-                  <th style={{padding:'8px 11px',textAlign:'center',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Parcelas</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Atraso</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Status</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Por</th>
-                  <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Andamento</th>
-                  {user==='Claudiane'&&<th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase'}}>Ações</th>}
+                  {showPlaca&&th('Placa V1')}
+                  {th(tipo==='lets'?'Cliente':'Devedor')}
+                  {isLetsPF&&th('CPF/CNPJ')}
+                  {th(tipo==='lets'?'Terceiro':'Telefone')}
+                  {isLetsPF&&th('Email')}
+                  {isLetsPF&&th('Responsável')}
+                  {isLetsPF&&th('Dt. Evento')}
+                  {isLetsPF&&th('Dt. Envio')}
+                  {tipo==='lets'&&th('Empresa')}
+                  {tipo==='avarias'&&th('Placa 3º')}
+                  {(tipo==='cobr'||tipo==='avarias')&&th('Fato Gerador')}
+                  {th('Valores a Receber')}
+                  {th('Parcelas')}
+                  {th('Atraso')}
+                  {th('Status')}
+                  {th('Por')}
+                  {th('Andamento')}
+                  {user==='Claudiane'&&th('Ações')}
                 </tr>
               </thead>
               <tbody>
-                {loading?<tr><td colSpan={13} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
-                :filtered.length===0?<tr><td colSpan={13} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
+                {loading?<tr><td colSpan={20} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
+                :filtered.length===0?<tr><td colSpan={20} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
                 :filtered.map(r=>{
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
                   const atraso = melhorAtraso(r)
                   const parc = r.parcelas || []
                   const pagas = parc.filter(p=>p.pago).length
+                  const td = (content: React.ReactNode, extra?: any) => (
+                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',...extra}}>{content||'—'}</td>
+                  )
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
-                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—')}</td>
-                    <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
+                    {td(tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—'))}
+                    {isLetsPF&&td(r.cpf_cnpj||'—',{color:'#7A919E',fontSize:11})}
+                    {td(tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—'),{color:'#7A919E'})}
+                    {isLetsPF&&td(r.email||'—',{color:'#7A919E',fontSize:11})}
+                    {isLetsPF&&td(r.responsavel||'—',{color:'#7A919E',fontSize:11})}
+                    {isLetsPF&&td(r.data_evento||'—',{color:'#7A919E',fontSize:11})}
+                    {isLetsPF&&td(r.data_envio||'—',{color:'#7A919E',fontSize:11})}
                     {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
                     {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
-                    {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
+                    {(tipo==='cobr'||tipo==='avarias')&&td(r.fato_gerador||'—',{color:'#7A919E',fontSize:11})}
                     <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'||tipo==='letspf'?r.danos:r.saldo)}</td>
                     <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
                       {parc.length > 0
