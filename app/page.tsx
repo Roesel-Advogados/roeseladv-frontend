@@ -341,17 +341,10 @@ export default function Home() {
         }
         return {
           _pos: true,
-          cliente:       row[1],
-          devedor:       row[3],
-          terceiro:      row[3],
-          telefone:      row[4],
-          email:         row[5],
-          contato:       row[4],
-          cpf_cnpj:      row[2],
-          danos:         row[11],
-          saldo:         row[12],
-          data_sinistro: row[14],
-          andamento:     row[16],
+          cliente: row[1], devedor: row[3], terceiro: row[3],
+          telefone: row[4], email: row[5], contato: row[4],
+          cpf_cnpj: row[2], danos: row[11], saldo: row[12],
+          data_sinistro: row[14], andamento: row[16],
         }
       })
       setUploadRows(mapped)
@@ -371,12 +364,10 @@ export default function Home() {
         if (dtRaw instanceof Date) data_sinistro = dtRaw.toLocaleDateString('pt-BR')
         else if (dtRaw) data_sinistro = str(dtRaw)
         const payload: any = {
-          tipo: uploadTipo,
-          atualizado_por: user,
-          parcelas: [],
+          tipo: uploadTipo, atualizado_por: user, parcelas: [],
           placa: str(isPosMap ? '' : (row['placa'] ?? row['Placa'] ?? '')),
           cliente: str(isPosMap ? row.cliente : (row['cliente'] ?? row['Cliente'] ?? '')),
-          terceiro: str(isPosMap ? row.terceiro : (row['terceiro'] ?? row['Terceiro'] ?? row['Devedor'] ?? row['devedor'] ?? '')),
+          terceiro: str(isPosMap ? row.terceiro : (row['terceiro'] ?? row['Terceiro'] ?? row['Devedor'] ?? '')),
           contato: str(isPosMap ? row.contato : (row['contato'] ?? row['Contato'] ?? '')),
           empresa: str(isPosMap ? '' : (row['empresa'] ?? row['Empresa'] ?? '')),
           email: str(isPosMap ? row.email : (row['email'] ?? row['Email'] ?? '')),
@@ -456,7 +447,7 @@ export default function Home() {
   }
 
   const showPlaca = tipo==='lets' || tipo==='avarias'
-  const isLetsPF = tipo === 'letspf'
+  const th = (label: string) => <th style={{padding:'8px 11px',textAlign:'left' as const,fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase' as const,whiteSpace:'nowrap' as const}}>{label}</th>
 
   const melhorAtraso = (r: Demanda) => {
     const parc = r.parcelas || []
@@ -468,10 +459,6 @@ export default function Home() {
     if (!r.pago && r.dias_atraso && r.dias_atraso > 0) return { dias: r.dias_atraso, parcelas: 0 }
     return null
   }
-
-  const th = (label: string) => (
-    <th style={{padding:'8px 11px',textAlign:'left',fontSize:10,fontWeight:700,color:'#7A919E',textTransform:'uppercase' as const,whiteSpace:'nowrap' as const}}>{label}</th>
-  )
 
   return (
     <div style={s.page}>
@@ -565,12 +552,12 @@ export default function Home() {
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
                   {showPlaca&&th('Placa V1')}
                   {th(tipo==='lets'?'Cliente':'Devedor')}
-                  {isLetsPF&&th('CPF/CNPJ')}
+                  {th('CPF/CNPJ')}
                   {th(tipo==='lets'?'Terceiro':'Telefone')}
-                  {isLetsPF&&th('Email')}
-                  {isLetsPF&&th('Responsável')}
-                  {isLetsPF&&th('Dt. Evento')}
-                  {isLetsPF&&th('Dt. Envio')}
+                  {th('Email')}
+                  {th('Responsável')}
+                  {th('Dt. Evento')}
+                  {th('Dt. Envio')}
                   {tipo==='lets'&&th('Empresa')}
                   {tipo==='avarias'&&th('Placa 3º')}
                   {(tipo==='cobr'||tipo==='avarias')&&th('Fato Gerador')}
@@ -592,21 +579,18 @@ export default function Home() {
                   const atraso = melhorAtraso(r)
                   const parc = r.parcelas || []
                   const pagas = parc.filter(p=>p.pago).length
-                  const td = (content: React.ReactNode, extra?: any) => (
-                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',...extra}}>{content||'—'}</td>
-                  )
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
-                    {td(tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—'))}
-                    {isLetsPF&&td(r.cpf_cnpj||'—',{color:'#7A919E',fontSize:11})}
-                    {td(tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—'),{color:'#7A919E'})}
-                    {isLetsPF&&td(r.email||'—',{color:'#7A919E',fontSize:11})}
-                    {isLetsPF&&td(r.responsavel||'—',{color:'#7A919E',fontSize:11})}
-                    {isLetsPF&&td(r.data_evento||'—',{color:'#7A919E',fontSize:11})}
-                    {isLetsPF&&td(r.data_envio||'—',{color:'#7A919E',fontSize:11})}
+                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—')}</td>
+                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.cpf_cnpj||'—'}</td>
+                    <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
+                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.email||'—'}</td>
+                    <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.responsavel||'—'}</td>
+                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_evento||'—'}</td>
+                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_envio||'—'}</td>
                     {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
                     {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
-                    {(tipo==='cobr'||tipo==='avarias')&&td(r.fato_gerador||'—',{color:'#7A919E',fontSize:11})}
+                    {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
                     <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'||tipo==='letspf'?r.danos:r.saldo)}</td>
                     <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
                       {parc.length > 0
@@ -710,11 +694,11 @@ export default function Home() {
               </div>
             ):tipo==='avarias'?(
               <div style={s.fg}>
-                <FormField lb="Devedor (Nome terceiro)"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
+                <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
+                <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
                 <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
                 <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
-                <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
                 <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
@@ -729,9 +713,9 @@ export default function Home() {
               <div style={s.fg}>
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
+                <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
                 <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
                 <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
-                <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
                 <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
                 <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
