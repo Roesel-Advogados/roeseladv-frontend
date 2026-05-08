@@ -5,16 +5,26 @@ import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 import * as XLSX from 'xlsx'
 
 type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias'
+type Empresa = 'roesel' | 'autocargas'
 
-const USUARIOS: Record<string, string> = {
-  'claudiane': 'fifi15',
-  'fabiana':   '1803',
-  'vix':       'Vix2026',
+const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[] }> = {
+  'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas'] },
+  'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
+  'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
+  'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
 }
-const NOMES: Record<string, string> = {
-  'claudiane': 'Claudiane',
-  'fabiana':   'Fabiana',
-  'vix':       'Vix',
+
+const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
+  roesel: [
+    { id: 'lets',    label: "Let's" },
+    { id: 'letspf',  label: "Let's PF" },
+    { id: 'vix',     label: 'Vix - 1' },
+    { id: 'cobr',    label: 'Vix - Cobrança' },
+    { id: 'avarias', label: 'Vix - Avarias' },
+  ],
+  autocargas: [
+    // abas da Autocargas serão adicionadas aqui
+  ],
 }
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
@@ -42,19 +52,11 @@ const ST_LETS = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixad
 const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
 const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
 
-const TABS: { id: Tipo; label: string }[] = [
-  { id: 'lets',    label: "Let's" },
-  { id: 'letspf',  label: "Let's PF" },
-  { id: 'vix',     label: 'Vix - 1' },
-  { id: 'cobr',    label: 'Vix - Cobrança' },
-  { id: 'avarias', label: 'Vix - Avarias' },
-]
-
 const s = {
   page:    { minHeight:'100vh', display:'flex', flexDirection:'column' as const, fontFamily:"'DM Sans',sans-serif", background:'#F2F6F8', color:'#1A2B38' },
   topbar:  { background:'#fff', borderBottom:'3px solid #0097A8', padding:'.7rem 1.5rem', display:'flex', alignItems:'center', gap:'1rem', position:'sticky' as const, top:0, zIndex:40, boxShadow:'0 2px 10px rgba(0,151,168,.1)' },
   logo:    { height:70, objectFit:'contain' as const, maxWidth:240 },
-  nav:     { display:'flex', gap:4, flex:1 },
+  nav:     { display:'flex', gap:4, flex:1, flexWrap:'wrap' as const },
   main:    { flex:1, padding:'1.25rem 1.5rem' },
   row:     { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.25rem' },
   h1:      { fontSize:20, fontWeight:600, color:'#1A2B38' },
@@ -193,14 +195,15 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
   )
 }
 
-function LoginScreen({ onLogin }: { onLogin:(nome:string)=>void }) {
+function LoginScreen({ onLogin }: { onLogin:(nome:string, empresa: Empresa)=>void }) {
   const [login, setLogin] = useState('')
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const handleLogin = () => {
     const key = login.trim().toLowerCase()
-    if (USUARIOS[key] && USUARIOS[key] === senha) {
-      onLogin(NOMES[key])
+    const u = USUARIOS[key]
+    if (u && u.senha === senha) {
+      onLogin(u.nome, u.empresas[0])
     } else {
       setErro('Usuário ou senha incorretos.')
       setTimeout(() => setErro(''), 3000)
@@ -233,6 +236,8 @@ function LoginScreen({ onLogin }: { onLogin:(nome:string)=>void }) {
 
 export default function Home() {
   const [logado, setLogado] = useState(false)
+  const [user, setUser] = useState('')
+  const [empresa, setEmpresa] = useState<Empresa>('roesel')
   const [tipo, setTipo] = useState<Tipo>('lets')
   const [data, setData] = useState<Demanda[]>([])
   const [loading, setLoading] = useState(true)
@@ -245,7 +250,6 @@ export default function Home() {
   const [parcelas, setParcelas] = useState<Parcela[]>([])
   const [saving, setSaving] = useState(false)
   const [confirmId, setConfirmId] = useState<number | null>(null)
-  const [user, setUser] = useState('')
   const [toast, setToast] = useState<{ msg:string; ok:boolean } | null>(null)
   const [conn, setConn] = useState<boolean | null>(null)
   const [uploadModal, setUploadModal] = useState(false)
@@ -257,17 +261,50 @@ export default function Home() {
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
+  const tabs = TABS_POR_EMPRESA[empresa] || []
+  const userInfo = Object.values(USUARIOS).find(u => u.nome === user)
+  const empresasDoUsuario = userInfo?.empresas || [empresa]
+  const podeExcluir = user === 'Claudiane'
+
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try { const d = await api.listar(tipo); setData(d); setConn(true) }
-    catch { setConn(false); if (!silent) showToast('Erro ao carregar',false) }
+    catch { setConn(false); if (!silent) showToast('Erro ao carregar', false) }
     finally { if (!silent) setLoading(false) }
   }, [tipo])
 
-  useEffect(()=>{ if(logado) load() },[load, logado])
+  useEffect(()=>{ if(logado && tabs.length > 0) load() },[load, logado])
   useEffect(()=>{ if(!logado) return; const t=setInterval(()=>load(true),30000);return()=>clearInterval(t) },[load, logado])
 
-  if (!logado) return <LoginScreen onLogin={(nome)=>{ setUser(nome); setLogado(true) }}/>
+  const handleLogin = (nome: string, emp: Empresa) => {
+    setUser(nome)
+    setEmpresa(emp)
+    const primeiraTab = TABS_POR_EMPRESA[emp]?.[0]
+    if (primeiraTab) setTipo(primeiraTab.id)
+    setLogado(true)
+  }
+
+  if (!logado) return <LoginScreen onLogin={handleLogin}/>
+
+  // Tela de empresa sem abas configuradas
+  if (tabs.length === 0) {
+    return (
+      <div style={{ minHeight:'100vh', background:'#F2F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>
+        <div style={{ background:'#fff', borderRadius:16, padding:'2.5rem 2rem', width:400, boxShadow:'0 8px 40px rgba(0,151,168,.15)', textAlign:'center' }}>
+          <p style={{ fontSize:32, marginBottom:16 }}>🚧</p>
+          <h2 style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>Em configuração</h2>
+          <p style={{ fontSize:13, color:'#7A919E', marginBottom:24 }}>As abas da Autocargas ainda estão sendo configuradas. Em breve você terá acesso!</p>
+          {empresasDoUsuario.length > 1 && (
+            <button onClick={()=>{ setEmpresa('roesel'); setTipo('lets') }}
+              style={{ ...s.btnTeal, justifyContent:'center', width:'100%' }}>
+              Acessar Roesel
+            </button>
+          )}
+          <button onClick={()=>setLogado(false)} style={{ ...s.btnOut, justifyContent:'center', width:'100%', marginTop:8 }}>Sair</button>
+        </div>
+      </div>
+    )
+  }
 
   const stList = tipo === 'lets' || tipo === 'letspf' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
 
@@ -431,7 +468,7 @@ export default function Home() {
   const arq=data.filter(r=>/arquivamento/i.test(r.andamento||'')).length
   const empC={LETS:data.filter(r=>r.empresa==='LETS').length,SALUTE:data.filter(r=>r.empresa==='SALUTE').length,EBEC:data.filter(r=>r.empresa==='EBEC').length}
 
-  const tabLabel = TABS.find(t=>t.id===tipo)?.label || ''
+  const tabLabel = tabs.find(t=>t.id===tipo)?.label || ''
   const subTitle = () => {
     if (tipo==='lets') return 'Processos junto a terceiros · LETS · SALUTE · EBEC'
     if (tipo==='letspf') return "Pessoas físicas · Carteira de cobrança Let's PF"
@@ -465,7 +502,17 @@ export default function Home() {
       <header style={s.topbar}>
         <img src="/logo.jpg" alt="Roesel" style={s.logo} onError={e=>(e.currentTarget.style.display='none')}/>
         <nav style={s.nav}>
-          {TABS.map(t=>(
+          {empresasDoUsuario.length > 1 && (
+            <div style={{display:'flex',gap:4,marginRight:8,borderRight:'1px solid #DDE5EA',paddingRight:8}}>
+              {empresasDoUsuario.map(emp=>(
+                <button key={emp} onClick={()=>{ setEmpresa(emp); const first=TABS_POR_EMPRESA[emp]?.[0]; if(first) setTipo(first.id); setSearch('');setFEmp('');setFSt('') }}
+                  style={{padding:'.45rem 1rem',borderRadius:7,border:'none',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',background:empresa===emp?'#1A2B38':'transparent',color:empresa===emp?'#fff':'#7A919E',textTransform:'capitalize'}}>
+                  {emp}
+                </button>
+              ))}
+            </div>
+          )}
+          {tabs.map(t=>(
             <button key={t.id} onClick={()=>{setTipo(t.id);setSearch('');setFEmp('');setFSt('')}}
               style={{padding:'.45rem 1.1rem',borderRadius:7,border:'none',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',background:tipo===t.id?'#0097A8':'transparent',color:tipo===t.id?'#fff':'#7A919E'}}>
               {t.label}
@@ -567,7 +614,7 @@ export default function Home() {
                   {th('Status')}
                   {th('Por')}
                   {th('Andamento')}
-                  {user==='Claudiane'&&th('Ações')}
+                  {podeExcluir&&th('Ações')}
                 </tr>
               </thead>
               <tbody>
@@ -609,7 +656,7 @@ export default function Home() {
                     <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
                     <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
                     <td style={{padding:'7px 11px',maxWidth:200,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
-                    {user==='Claudiane'&&<td style={{padding:'7px 11px',whiteSpace:'nowrap'}} onClick={e=>e.stopPropagation()}>
+                    {podeExcluir&&<td style={{padding:'7px 11px',whiteSpace:'nowrap'}} onClick={e=>e.stopPropagation()}>
                       <button onClick={e=>{e.stopPropagation();setConfirmId(r.id)}} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #FDECEA',background:'transparent',cursor:'pointer',color:'#E74C3C'}}><Trash2 size={13}/></button>
                     </td>}
                   </tr>
@@ -640,11 +687,7 @@ export default function Home() {
               <div>
                 <label style={s.lb}>Aba de destino</label>
                 <select style={s.fi} value={uploadTipo} onChange={e=>setUploadTipo(e.target.value as Tipo)}>
-                  <option value="lets">Let's</option>
-                  <option value="letspf">Let's PF</option>
-                  <option value="vix">Vix - 1</option>
-                  <option value="cobr">Vix - Cobrança</option>
-                  <option value="avarias">Vix - Avarias</option>
+                  {tabs.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
               </div>
               <div>
