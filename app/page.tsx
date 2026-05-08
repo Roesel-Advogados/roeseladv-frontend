@@ -14,6 +14,11 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
 }
 
+const EMPRESA_LABEL: Record<Empresa, string> = {
+  roesel: 'Vix',
+  autocargas: 'Autocargas',
+}
+
 const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
   roesel: [
     { id: 'lets',    label: "Let's" },
@@ -22,9 +27,7 @@ const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
     { id: 'cobr',    label: 'Vix - Cobrança' },
     { id: 'avarias', label: 'Vix - Avarias' },
   ],
-  autocargas: [
-    // abas da Autocargas serão adicionadas aqui
-  ],
+  autocargas: [],
 }
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
@@ -286,7 +289,6 @@ export default function Home() {
 
   if (!logado) return <LoginScreen onLogin={handleLogin}/>
 
-  // Tela de empresa sem abas configuradas
   if (tabs.length === 0) {
     return (
       <div style={{ minHeight:'100vh', background:'#F2F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>
@@ -297,7 +299,7 @@ export default function Home() {
           {empresasDoUsuario.length > 1 && (
             <button onClick={()=>{ setEmpresa('roesel'); setTipo('lets') }}
               style={{ ...s.btnTeal, justifyContent:'center', width:'100%' }}>
-              Acessar Roesel
+              Acessar Vix
             </button>
           )}
           <button onClick={()=>setLogado(false)} style={{ ...s.btnOut, justifyContent:'center', width:'100%', marginTop:8 }}>Sair</button>
@@ -506,8 +508,8 @@ export default function Home() {
             <div style={{display:'flex',gap:4,marginRight:8,borderRight:'1px solid #DDE5EA',paddingRight:8}}>
               {empresasDoUsuario.map(emp=>(
                 <button key={emp} onClick={()=>{ setEmpresa(emp); const first=TABS_POR_EMPRESA[emp]?.[0]; if(first) setTipo(first.id); setSearch('');setFEmp('');setFSt('') }}
-                  style={{padding:'.45rem 1rem',borderRadius:7,border:'none',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',background:empresa===emp?'#1A2B38':'transparent',color:empresa===emp?'#fff':'#7A919E',textTransform:'capitalize'}}>
-                  {emp}
+                  style={{padding:'.45rem 1rem',borderRadius:7,border:'none',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',background:empresa===emp?'#1A2B38':'transparent',color:empresa===emp?'#fff':'#7A919E'}}>
+                  {EMPRESA_LABEL[emp]}
                 </button>
               ))}
             </div>
