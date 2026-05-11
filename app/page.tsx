@@ -306,9 +306,8 @@ export default function Home() {
 
   const stList = isAuto ? ST_AUTO : tipo === 'lets' || tipo === 'letspf' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
 
-  // meses disponíveis nos dados auto carga
-  const mesesDisponiveis = isAuto
-    ? [...new Set(data.map(r => r.data_sinistro).filter(Boolean))].sort()
+  const mesesDisponiveis: string[] = isAuto
+    ? Array.from(new Set(data.map(r => r.data_sinistro).filter((m): m is string => !!m))).sort()
     : []
 
   const blank = () => ({
@@ -364,16 +363,13 @@ export default function Home() {
     const file = e.target.files?.[0]
     if (!file) return
     setUploadFileName(file.name)
-    // tenta extrair mês/ano do nome do arquivo ex: "...Abril_de_2026..."
     const mesesNomes = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
     const nomeLower = file.name.toLowerCase()
     let mesDetectado = ''
     mesesNomes.forEach((m, i) => {
       if (nomeLower.includes(m)) {
         const anoMatch = file.name.match(/\d{4}/)
-        if (anoMatch) {
-          mesDetectado = `${String(i+1).padStart(2,'0')}/${anoMatch[0]}`
-        }
+        if (anoMatch) mesDetectado = `${String(i+1).padStart(2,'0')}/${anoMatch[0]}`
       }
     })
     if (mesDetectado) setUploadMes(mesDetectado)
@@ -595,7 +591,7 @@ export default function Home() {
         </div>
 
         <div style={s.g4}>
-          <KPI l="Total de processos" v={tot} sv={isAuto ? `${tot} registros` : tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
+          <KPI l="Total de processos" v={tot} sv={isAuto?`${tot} registros`:tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
           <KPI l={isAuto?"Valor da causa total":"Valores a Receber"} v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
           <KPI l="Em andamento" v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
