@@ -9,7 +9,7 @@ type Empresa = 'roesel' | 'autocargas'
 
 const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[] }> = {
   'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas'] },
-  'fabiana':   { senha: '1806',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
+  'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
 }
