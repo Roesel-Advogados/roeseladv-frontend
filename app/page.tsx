@@ -4,7 +4,7 @@ import { Plus, Search, Trash2, Download, X, Upload } from 'lucide-react'
 import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 import * as XLSX from 'xlsx'
 
-type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias'
+type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias' | 'autocarga'
 type Empresa = 'roesel' | 'autocargas'
 
 const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[] }> = {
@@ -21,13 +21,15 @@ const EMPRESA_LABEL: Record<Empresa, string> = {
 
 const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
   roesel: [
-    { id: 'lets',    label: "Let's" },
-    { id: 'letspf',  label: "Let's PF" },
-    { id: 'vix',     label: 'Vix - 1' },
-    { id: 'cobr',    label: 'Vix - Cobrança' },
-    { id: 'avarias', label: 'Vix - Avarias' },
+    { id: 'lets',      label: "Let's" },
+    { id: 'letspf',    label: "Let's PF" },
+    { id: 'vix',       label: 'Vix - 1' },
+    { id: 'cobr',      label: 'Vix - Cobrança' },
+    { id: 'avarias',   label: 'Vix - Avarias' },
   ],
-  autocargas: [],
+  autocargas: [
+    { id: 'autocarga', label: 'Auto Carga' },
+  ],
 }
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
@@ -54,6 +56,7 @@ const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','P
 const ST_LETS = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
 const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
 const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
+const ST_AUTO = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
 
 const s = {
   page:    { minHeight:'100vh', display:'flex', flexDirection:'column' as const, fontFamily:"'DM Sans',sans-serif", background:'#F2F6F8', color:'#1A2B38' },
@@ -289,32 +292,14 @@ export default function Home() {
 
   if (!logado) return <LoginScreen onLogin={handleLogin}/>
 
-  if (tabs.length === 0) {
-    return (
-      <div style={{ minHeight:'100vh', background:'#F2F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>
-        <div style={{ background:'#fff', borderRadius:16, padding:'2.5rem 2rem', width:400, boxShadow:'0 8px 40px rgba(0,151,168,.15)', textAlign:'center' }}>
-          <p style={{ fontSize:32, marginBottom:16 }}>🚧</p>
-          <h2 style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>Em configuração</h2>
-          <p style={{ fontSize:13, color:'#7A919E', marginBottom:24 }}>As abas da Autocargas ainda estão sendo configuradas. Em breve você terá acesso!</p>
-          {empresasDoUsuario.length > 1 && (
-            <button onClick={()=>{ setEmpresa('roesel'); setTipo('lets') }}
-              style={{ ...s.btnTeal, justifyContent:'center', width:'100%' }}>
-              Acessar Vix
-            </button>
-          )}
-          <button onClick={()=>setLogado(false)} style={{ ...s.btnOut, justifyContent:'center', width:'100%', marginTop:8 }}>Sair</button>
-        </div>
-      </div>
-    )
-  }
-
-  const stList = tipo === 'lets' || tipo === 'letspf' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
+  const isAuto = tipo === 'autocarga'
+  const stList = isAuto ? ST_AUTO : tipo === 'lets' || tipo === 'letspf' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
 
   const blank = () => ({
-    tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa: tipo === 'lets' || tipo === 'letspf' ? 'LETS' : '',
+    tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa:'',
     data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
-    status: tipo === 'lets' || tipo === 'letspf' ? 'Em andamento' : 'Em tratativa',
-    fato_gerador:'Em tratativa', andamento:'', atualizado_por:user,
+    status: isAuto ? 'Em andamento' : tipo === 'lets' || tipo === 'letspf' ? 'Em andamento' : 'Em tratativa',
+    fato_gerador: isAuto ? 'Cível' : 'Em tratativa', andamento:'', atualizado_por:user,
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
     data_envio:'', responsavel:'', cpf_cnpj:'', data_evento:'', email:'',
   })
@@ -404,24 +389,24 @@ export default function Home() {
         else if (dtRaw) data_sinistro = str(dtRaw)
         const payload: any = {
           tipo: uploadTipo, atualizado_por: user, parcelas: [],
-          placa: str(isPosMap ? '' : (row['placa'] ?? row['Placa'] ?? '')),
+          placa: str(isPosMap ? '' : (row['placa'] ?? row['Placa'] ?? row['nº processo'] ?? '')),
           cliente: str(isPosMap ? row.cliente : (row['cliente'] ?? row['Cliente'] ?? '')),
-          terceiro: str(isPosMap ? row.terceiro : (row['terceiro'] ?? row['Terceiro'] ?? row['Devedor'] ?? '')),
-          contato: str(isPosMap ? row.contato : (row['contato'] ?? row['Contato'] ?? '')),
-          empresa: str(isPosMap ? '' : (row['empresa'] ?? row['Empresa'] ?? '')),
+          terceiro: str(isPosMap ? row.terceiro : (row['terceiro'] ?? row['Pólo da Demanda'] ?? '')),
+          contato: str(isPosMap ? row.contato : (row['contato'] ?? row['Juízo'] ?? '')),
+          empresa: str(isPosMap ? '' : (row['empresa'] ?? row['Comarca/UF'] ?? '')),
           email: str(isPosMap ? row.email : (row['email'] ?? row['Email'] ?? '')),
-          cpf_cnpj: str(isPosMap ? row.cpf_cnpj : (row['cpf_cnpj'] ?? row['CPF/CNPJ'] ?? row['CNPJ/CPF'] ?? '')),
+          cpf_cnpj: str(isPosMap ? row.cpf_cnpj : (row['cpf_cnpj'] ?? row['CPF/CNPJ'] ?? '')),
           data_sinistro,
-          danos: toNum(isPosMap ? row.danos : (row['danos'] ?? row['Danos'] ?? row['Vl. Título'] ?? 0)),
-          saldo: toNum(isPosMap ? row.saldo : (row['saldo'] ?? row['Saldo'] ?? 0)),
-          devedor: str(isPosMap ? row.devedor : (row['devedor'] ?? row['Devedor'] ?? '')),
+          danos: toNum(isPosMap ? row.danos : (row['danos'] ?? row['Valor da causa'] ?? row['Vl. Título'] ?? 0)),
+          saldo: toNum(isPosMap ? row.saldo : (row['saldo'] ?? row['Valor passivo de condenação'] ?? row['Saldo'] ?? 0)),
+          devedor: str(isPosMap ? row.devedor : (row['devedor'] ?? row['Parte Adversa'] ?? row['Devedor'] ?? '')),
           telefone: str(isPosMap ? row.telefone : (row['telefone'] ?? row['Telefone'] ?? '')),
-          status: str(isPosMap ? 'Em tratativa' : (row['status'] ?? row['Status'] ?? (uploadTipo === 'lets' || uploadTipo === 'letspf' ? 'Em andamento' : 'Em tratativa'))),
-          fato_gerador: str(isPosMap ? 'Em tratativa' : (row['fato_gerador'] ?? row['Fato Gerador'] ?? 'Em tratativa')),
-          andamento: str(isPosMap ? row.andamento : (row['andamento'] ?? row['Andamento'] ?? row['Observação'] ?? '')),
+          status: str(isPosMap ? 'Em andamento' : (row['status'] ?? row['Status'] ?? 'Em andamento')),
+          fato_gerador: str(isPosMap ? 'Cível' : (row['fato_gerador'] ?? row['Natureza'] ?? row['Fato Gerador'] ?? 'Cível')),
+          andamento: str(isPosMap ? row.andamento : (row['andamento'] ?? row['Andamentos'] ?? row['Observação'] ?? '')),
           responsavel: str(isPosMap ? '' : (row['responsavel'] ?? row['Responsável'] ?? '')),
-          data_envio: str(isPosMap ? '' : (row['data_envio'] ?? row['Data Envio'] ?? '')),
-          data_evento: str(isPosMap ? '' : (row['data_evento'] ?? row['Data Evento'] ?? '')),
+          data_envio: str(isPosMap ? '' : (row['data_envio'] ?? '')),
+          data_evento: str(isPosMap ? '' : (row['data_evento'] ?? '')),
           limite: 0, data_vencimento: '', valor_pago: 0, data_pagamento: '', pago: false,
         }
         await api.criar(payload)
@@ -442,14 +427,14 @@ export default function Home() {
   const filtered = data.filter(r => {
     if (fEmp && r.empresa!==fEmp) return false
     if (fSt && r.status!==fSt) return false
-    if (search) { const q=search.toLowerCase(); if(![r.placa,r.cliente,r.terceiro,r.devedor,r.telefone,r.andamento,r.cpf_cnpj,r.email].some(f=>f?.toLowerCase().includes(q))) return false }
+    if (search) { const q=search.toLowerCase(); if(![r.placa,r.cliente,r.terceiro,r.devedor,r.telefone,r.andamento,r.cpf_cnpj,r.email,r.contato].some(f=>f?.toLowerCase().includes(q))) return false }
     return true
   })
 
   const hoje = new Date()
   const mesAtual = `${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`
   const tot=data.length
-  const totVal=data.reduce((s,r)=>s+(tipo==='lets'||tipo==='letspf'?(r.danos||0):(r.saldo||0)),0)
+  const totVal=data.reduce((s,r)=>s+(r.danos||0),0)
   const totalPagoMes=data.reduce((s,r)=>{
     const somaParcMes=(r.parcelas||[]).filter(p=>p.pago&&p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0)
     const pagoDireto=r.pago&&r.data_pagamento?.slice(3)===mesAtual?(r.valor_pago||0):0
@@ -463,11 +448,11 @@ export default function Home() {
   const acFin=data.filter(r=>r.status==='Acordo fechado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
   const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
   const culpa=data.filter(r=>/culpa do locat/i.test(r.andamento||'')).length
-  const semEx=data.filter(r=>/sem êxito/i.test(r.andamento||'')).length
-  const preProc=data.filter(r=>/pré processual/i.test(r.andamento||'')).length
+  const semEx=data.filter(r=>r.status==='Sem êxito').length
+  const preProc=data.filter(r=>r.status==='Pré-processual').length
   const notif=data.filter(r=>/notificação extrajudicial/i.test(r.andamento||'')).length
   const segur=data.filter(r=>/seguradora/i.test(r.andamento||'')).length
-  const arq=data.filter(r=>/arquivamento/i.test(r.andamento||'')).length
+  const arq=data.filter(r=>r.status==='Arquivado').length
   const empC={LETS:data.filter(r=>r.empresa==='LETS').length,SALUTE:data.filter(r=>r.empresa==='SALUTE').length,EBEC:data.filter(r=>r.empresa==='EBEC').length}
 
   const tabLabel = tabs.find(t=>t.id===tipo)?.label || ''
@@ -476,13 +461,14 @@ export default function Home() {
     if (tipo==='letspf') return "Pessoas físicas · Carteira de cobrança Let's PF"
     if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
     if (tipo==='cobr') return 'Cobrança V1 · Terceiros'
+    if (tipo==='autocarga') return 'Processos judiciais · Auto Carga'
     return 'Avarias V1 · Sinistros por terceiros'
   }
 
   const exportCSV = () => {
-    const keys=['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','cpf_cnpj','email','responsavel','data_evento','data_envio']
+    const keys=['placa','cliente','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','andamento','atualizado_por']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`roesel_${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
 
   const showPlaca = tipo==='lets' || tipo==='avarias'
@@ -555,7 +541,7 @@ export default function Home() {
               {l:'Acordo fechado',v:acFin,sv:'quitado'},
               {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
               {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
-              {l:'Pré-processuais',v:preProc,sv:'em curso'}
+              {l:'Arquivados',v:arq,sv:'encerrados'}
             ].map(({l,v,sv})=>(
               <div key={l} style={{background:'rgba(255,255,255,.15)',borderRadius:8,padding:'.65rem .9rem'}}>
                 <p style={{fontSize:10,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>{l}</p>
@@ -567,18 +553,18 @@ export default function Home() {
         </div>
 
         <div style={s.g4}>
-          <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
-          <KPI l="Valores a Receber" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
-          <KPI l={tipo==='lets'||tipo==='letspf'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
+          <KPI l="Total de processos" v={tot} sv={`${tot} registros`} c="#0097A8"/>
+          <KPI l="Valor da causa total" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
+          <KPI l="Em andamento" v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
         <div style={s.g6}>
-          <KPI l="Culpa do locatário" v={culpa} c="#E74C3C"/>
+          <KPI l="Pré-processual" v={preProc} c="#E74C3C"/>
           <KPI l="Sem êxito" v={semEx} c="#E67E22"/>
-          <KPI l="Pré-processual" v={preProc} c="#8E44AD"/>
+          <KPI l="Arquivados" v={arq} c="#8E44AD"/>
           <KPI l="Notif. extrajudicial" v={notif} c="#0097A8"/>
           <KPI l="Com seguradora" v={segur} c="#2980B9"/>
-          <KPI l="Arquivamento sugerido" v={arq} c="#27AE60"/>
+          <KPI l="Culpa do locatário" v={culpa} c="#27AE60"/>
         </div>
 
         <div style={s.card}>
@@ -588,7 +574,6 @@ export default function Home() {
               <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#7A919E'}}/>
               <input style={{...s.inp,paddingLeft:30,width:176}} placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
-            {tipo==='lets'&&<select style={s.inp} value={fEmp} onChange={e=>setFEmp(e.target.value)}><option value="">Todas empresas</option><option>LETS</option><option>SALUTE</option><option>EBEC</option></select>}
             <select style={s.inp} value={fSt} onChange={e=>setFSt(e.target.value)}>
               <option value="">Todos status</option>
               {stList.map(x=><option key={x}>{x}</option>)}
@@ -599,23 +584,37 @@ export default function Home() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
-                  {showPlaca&&th('Placa V1')}
-                  {th(tipo==='lets'?'Cliente':'Devedor')}
-                  {th('CPF/CNPJ')}
-                  {th(tipo==='lets'?'Terceiro':'Telefone')}
-                  {th('Email')}
-                  {th('Responsável')}
-                  {th('Dt. Evento')}
-                  {th('Dt. Envio')}
-                  {tipo==='lets'&&th('Empresa')}
-                  {tipo==='avarias'&&th('Placa 3º')}
-                  {(tipo==='cobr'||tipo==='avarias')&&th('Fato Gerador')}
-                  {th('Valores a Receber')}
-                  {th('Parcelas')}
-                  {th('Atraso')}
-                  {th('Status')}
-                  {th('Por')}
-                  {th('Andamento')}
+                  {isAuto ? <>
+                    {th('Nº Processo')}
+                    {th('Parte Adversa')}
+                    {th('Pólo')}
+                    {th('Juízo')}
+                    {th('Comarca/UF')}
+                    {th('Natureza')}
+                    {th('Valor da Causa')}
+                    {th('Valor Passivo')}
+                    {th('Status')}
+                    {th('Por')}
+                    {th('Andamento')}
+                  </> : <>
+                    {showPlaca&&th('Placa V1')}
+                    {th(tipo==='lets'?'Cliente':'Devedor')}
+                    {th('CPF/CNPJ')}
+                    {th(tipo==='lets'?'Terceiro':'Telefone')}
+                    {th('Email')}
+                    {th('Responsável')}
+                    {th('Dt. Evento')}
+                    {th('Dt. Envio')}
+                    {tipo==='lets'&&th('Empresa')}
+                    {tipo==='avarias'&&th('Placa 3º')}
+                    {(tipo==='cobr'||tipo==='avarias')&&th('Fato Gerador')}
+                    {th('Valores a Receber')}
+                    {th('Parcelas')}
+                    {th('Atraso')}
+                    {th('Status')}
+                    {th('Por')}
+                    {th('Andamento')}
+                  </>}
                   {podeExcluir&&th('Ações')}
                 </tr>
               </thead>
@@ -629,35 +628,49 @@ export default function Home() {
                   const parc = r.parcelas || []
                   const pagas = parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
-                    {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
-                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—')}</td>
-                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.cpf_cnpj||'—'}</td>
-                    <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
-                    <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.email||'—'}</td>
-                    <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.responsavel||'—'}</td>
-                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_evento||'—'}</td>
-                    <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_envio||'—'}</td>
-                    {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
-                    {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
-                    {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
-                    <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'||tipo==='letspf'?r.danos:r.saldo)}</td>
-                    <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
-                      {parc.length > 0
-                        ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span>
-                        : <span style={{color:'#7A919E'}}>—</span>
-                      }
-                    </td>
-                    <td style={{padding:'7px 11px'}}>
-                      {atraso
-                        ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>
-                            {atraso.parcelas > 0 ? `${atraso.parcelas}p · ` : ''}{atraso.dias}d
-                          </span>
-                        : <span style={{color:'#7A919E',fontSize:11}}>—</span>
-                      }
-                    </td>
-                    <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
-                    <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
-                    <td style={{padding:'7px 11px',maxWidth:200,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
+                    {isAuto ? <>
+                      <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E',whiteSpace:'nowrap'}}>{r.placa||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:160,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontWeight:500}}>{r.devedor||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.contato||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.empresa||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.fato_gerador||'—'}</td>
+                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.danos)}</td>
+                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600,color:'#E74C3C'}}>{fmtN(r.saldo)}</td>
+                      <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
+                      <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:250,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
+                    </> : <>
+                      {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
+                      <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—')}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.cpf_cnpj||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E'}}>{tipo==='lets'?(r.terceiro||'—'):(r.telefone||'—')}</td>
+                      <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.email||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.responsavel||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_evento||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_envio||'—'}</td>
+                      {tipo==='lets'&&<td style={{padding:'7px 11px'}}>{r.empresa?<Badge label={r.empresa} bg={empStyle.bg} color={empStyle.color}/>:'—'}</td>}
+                      {tipo==='avarias'&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.terceiro||'—'}</td>}
+                      {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
+                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'||tipo==='letspf'?r.danos:r.saldo)}</td>
+                      <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
+                        {parc.length > 0
+                          ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span>
+                          : <span style={{color:'#7A919E'}}>—</span>
+                        }
+                      </td>
+                      <td style={{padding:'7px 11px'}}>
+                        {atraso
+                          ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>
+                              {atraso.parcelas > 0 ? `${atraso.parcelas}p · ` : ''}{atraso.dias}d
+                            </span>
+                          : <span style={{color:'#7A919E',fontSize:11}}>—</span>
+                        }
+                      </td>
+                      <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
+                      <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:200,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
+                    </>}
                     {podeExcluir&&<td style={{padding:'7px 11px',whiteSpace:'nowrap'}} onClick={e=>e.stopPropagation()}>
                       <button onClick={e=>{e.stopPropagation();setConfirmId(r.id)}} style={{padding:'4px 7px',borderRadius:6,border:'1px solid #FDECEA',background:'transparent',cursor:'pointer',color:'#E74C3C'}}><Trash2 size={13}/></button>
                     </td>}
@@ -721,7 +734,22 @@ export default function Home() {
               <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}</h3>
               <button onClick={()=>setModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
-            {tipo==='lets'||tipo==='letspf'?(
+            {isAuto?(
+              <div style={s.fg}>
+                <FormField lb="Nº Processo"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
+                <FormField lb="Parte Adversa"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
+                <FormField lb="Pólo da Demanda"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
+                <FormField lb="Juízo"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
+                <FormField lb="Comarca/UF"><input style={s.fi} value={form.empresa||''} onChange={e=>set('empresa',e.target.value)}/></FormField>
+                <FormField lb="Natureza"><input style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}/></FormField>
+                <FormField lb="Valor da Causa (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
+                <FormField lb="Valor Passivo (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
+                <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_AUTO.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
+                <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
+                <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:120}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
+              </div>
+            ):tipo==='lets'||tipo==='letspf'?(
               <div style={s.fg}>
                 <FormField lb="Cliente"><input style={s.fi} value={form.cliente||''} onChange={e=>set('cliente',e.target.value)}/></FormField>
                 <FormField lb="Devedor"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
