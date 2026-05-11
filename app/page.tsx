@@ -58,6 +58,8 @@ const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente as
 const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
 const ST_AUTO = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
 
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
 const s = {
   page:    { minHeight:'100vh', display:'flex', flexDirection:'column' as const, fontFamily:"'DM Sans',sans-serif", background:'#F2F6F8', color:'#1A2B38' },
   topbar:  { background:'#fff', borderBottom:'3px solid #0097A8', padding:'.7rem 1.5rem', display:'flex', alignItems:'center', gap:'1rem', position:'sticky' as const, top:0, zIndex:40, boxShadow:'0 2px 10px rgba(0,151,168,.1)' },
@@ -101,6 +103,13 @@ function toNum(v: any): number {
 
 function str(v: any): string {
   return v == null ? '' : String(v).trim()
+}
+
+function mesLabel(mmaaaa: string): string {
+  if (!mmaaaa) return ''
+  const [mm, aaaa] = mmaaaa.split('/')
+  const nome = MESES[parseInt(mm) - 1] || mm
+  return `${nome}/${aaaa}`
 }
 
 function KPI({ l, v, sv, c }: { l:string; v:string|number; sv?:string; c:string }) {
@@ -250,6 +259,7 @@ export default function Home() {
   const [search, setSearch] = useState('')
   const [fEmp, setFEmp] = useState('')
   const [fSt, setFSt] = useState('')
+  const [fMes, setFMes] = useState('')
   const [modal, setModal] = useState(false)
   const [editing, setEditing] = useState<Demanda | null>(null)
   const [form, setForm] = useState<any>({})
@@ -260,6 +270,7 @@ export default function Home() {
   const [conn, setConn] = useState<boolean | null>(null)
   const [uploadModal, setUploadModal] = useState(false)
   const [uploadTipo, setUploadTipo] = useState<Tipo>('lets')
+  const [uploadMes, setUploadMes] = useState('')
   const [uploadRows, setUploadRows] = useState<any[]>([])
   const [uploadFileName, setUploadFileName] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -271,6 +282,7 @@ export default function Home() {
   const userInfo = Object.values(USUARIOS).find(u => u.nome === user)
   const empresasDoUsuario = userInfo?.empresas || [empresa]
   const podeExcluir = user === 'Claudiane'
+  const isAuto = tipo === 'autocarga'
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -292,12 +304,17 @@ export default function Home() {
 
   if (!logado) return <LoginScreen onLogin={handleLogin}/>
 
-  const isAuto = tipo === 'autocarga'
   const stList = isAuto ? ST_AUTO : tipo === 'lets' || tipo === 'letspf' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
+
+  // meses disponíveis nos dados auto carga
+  const mesesDisponiveis = isAuto
+    ? [...new Set(data.map(r => r.data_sinistro).filter(Boolean))].sort()
+    : []
 
   const blank = () => ({
     tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa:'',
-    data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
+    data_sinistro: isAuto ? (fMes || '') : '',
+    danos:0, limite:0, devedor:'', telefone:'', saldo:0,
     status: isAuto ? 'Em andamento' : tipo === 'lets' || tipo === 'letspf' ? 'Em andamento' : 'Em tratativa',
     fato_gerador: isAuto ? 'Cível' : 'Em tratativa', andamento:'', atualizado_por:user,
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
@@ -347,6 +364,20 @@ export default function Home() {
     const file = e.target.files?.[0]
     if (!file) return
     setUploadFileName(file.name)
+    // tenta extrair mês/ano do nome do arquivo ex: "...Abril_de_2026..."
+    const mesesNomes = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+    const nomeLower = file.name.toLowerCase()
+    let mesDetectado = ''
+    mesesNomes.forEach((m, i) => {
+      if (nomeLower.includes(m)) {
+        const anoMatch = file.name.match(/\d{4}/)
+        if (anoMatch) {
+          mesDetectado = `${String(i+1).padStart(2,'0')}/${anoMatch[0]}`
+        }
+      }
+    })
+    if (mesDetectado) setUploadMes(mesDetectado)
+
     const reader = new FileReader()
     reader.onload = (ev) => {
       const wb = XLSX.read(ev.target?.result, { type: 'binary' })
@@ -383,10 +414,13 @@ export default function Home() {
     for (const row of uploadRows) {
       try {
         const isPosMap = row._pos
-        let data_sinistro = ''
-        const dtRaw = isPosMap ? row.data_sinistro : (row['data_sinistro'] ?? row['Data Sinistro'] ?? row['Dt. Vencimento'] ?? '')
-        if (dtRaw instanceof Date) data_sinistro = dtRaw.toLocaleDateString('pt-BR')
-        else if (dtRaw) data_sinistro = str(dtRaw)
+        const isAutoUpload = uploadTipo === 'autocarga'
+        let data_sinistro = isAutoUpload ? uploadMes : ''
+        if (!isAutoUpload) {
+          const dtRaw = isPosMap ? row.data_sinistro : (row['data_sinistro'] ?? row['Data Sinistro'] ?? row['Dt. Vencimento'] ?? '')
+          if (dtRaw instanceof Date) data_sinistro = dtRaw.toLocaleDateString('pt-BR')
+          else if (dtRaw) data_sinistro = str(dtRaw)
+        }
         const payload: any = {
           tipo: uploadTipo, atualizado_por: user, parcelas: [],
           placa: str(isPosMap ? '' : (row['placa'] ?? row['Placa'] ?? row['nº processo'] ?? '')),
@@ -405,8 +439,7 @@ export default function Home() {
           fato_gerador: str(isPosMap ? 'Cível' : (row['fato_gerador'] ?? row['Natureza'] ?? row['Fato Gerador'] ?? 'Cível')),
           andamento: str(isPosMap ? row.andamento : (row['andamento'] ?? row['Andamentos'] ?? row['Observação'] ?? '')),
           responsavel: str(isPosMap ? '' : (row['responsavel'] ?? row['Responsável'] ?? '')),
-          data_envio: str(isPosMap ? '' : (row['data_envio'] ?? '')),
-          data_evento: str(isPosMap ? '' : (row['data_evento'] ?? '')),
+          data_envio: '', data_evento: '',
           limite: 0, data_vencimento: '', valor_pago: 0, data_pagamento: '', pago: false,
         }
         await api.criar(payload)
@@ -417,6 +450,7 @@ export default function Home() {
     setUploadModal(false)
     setUploadRows([])
     setUploadFileName('')
+    setUploadMes('')
     if (fileRef.current) fileRef.current.value = ''
     showToast(`${ok} importadas${err > 0 ? `, ${err} erros` : ''}!`, err === 0)
     if (uploadTipo === tipo) load()
@@ -427,6 +461,7 @@ export default function Home() {
   const filtered = data.filter(r => {
     if (fEmp && r.empresa!==fEmp) return false
     if (fSt && r.status!==fSt) return false
+    if (isAuto && fMes && r.data_sinistro!==fMes) return false
     if (search) { const q=search.toLowerCase(); if(![r.placa,r.cliente,r.terceiro,r.devedor,r.telefone,r.andamento,r.cpf_cnpj,r.email,r.contato].some(f=>f?.toLowerCase().includes(q))) return false }
     return true
   })
@@ -447,12 +482,12 @@ export default function Home() {
   const ea=data.filter(r=>r.status==='Em andamento'||r.status==='Em tratativa').length
   const acFin=data.filter(r=>r.status==='Acordo fechado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
   const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
-  const culpa=data.filter(r=>/culpa do locat/i.test(r.andamento||'')).length
   const semEx=data.filter(r=>r.status==='Sem êxito').length
   const preProc=data.filter(r=>r.status==='Pré-processual').length
   const notif=data.filter(r=>/notificação extrajudicial/i.test(r.andamento||'')).length
   const segur=data.filter(r=>/seguradora/i.test(r.andamento||'')).length
   const arq=data.filter(r=>r.status==='Arquivado').length
+  const culpa=data.filter(r=>/culpa do locat/i.test(r.andamento||'')).length
   const empC={LETS:data.filter(r=>r.empresa==='LETS').length,SALUTE:data.filter(r=>r.empresa==='SALUTE').length,EBEC:data.filter(r=>r.empresa==='EBEC').length}
 
   const tabLabel = tabs.find(t=>t.id===tipo)?.label || ''
@@ -461,14 +496,16 @@ export default function Home() {
     if (tipo==='letspf') return "Pessoas físicas · Carteira de cobrança Let's PF"
     if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
     if (tipo==='cobr') return 'Cobrança V1 · Terceiros'
-    if (tipo==='autocarga') return 'Processos judiciais · Auto Carga'
+    if (tipo==='autocarga') return `Processos judiciais · Auto Carga${fMes ? ' · ' + mesLabel(fMes) : ''}`
     return 'Avarias V1 · Sinistros por terceiros'
   }
 
   const exportCSV = () => {
-    const keys=['placa','cliente','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','andamento','atualizado_por']
+    const keys = isAuto
+      ? ['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','data_sinistro','andamento','atualizado_por']
+      : ['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','cpf_cnpj','email','responsavel','data_evento','data_envio']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`${tipo}_${fMes||'todos'}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
 
   const showPlaca = tipo==='lets' || tipo==='avarias'
@@ -493,7 +530,7 @@ export default function Home() {
           {empresasDoUsuario.length > 1 && (
             <div style={{display:'flex',gap:4,marginRight:8,borderRight:'1px solid #DDE5EA',paddingRight:8}}>
               {empresasDoUsuario.map(emp=>(
-                <button key={emp} onClick={()=>{ setEmpresa(emp); const first=TABS_POR_EMPRESA[emp]?.[0]; if(first) setTipo(first.id); setSearch('');setFEmp('');setFSt('') }}
+                <button key={emp} onClick={()=>{ setEmpresa(emp); const first=TABS_POR_EMPRESA[emp]?.[0]; if(first) setTipo(first.id); setSearch('');setFEmp('');setFSt('');setFMes('') }}
                   style={{padding:'.45rem 1rem',borderRadius:7,border:'none',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',background:empresa===emp?'#1A2B38':'transparent',color:empresa===emp?'#fff':'#7A919E'}}>
                   {EMPRESA_LABEL[emp]}
                 </button>
@@ -501,7 +538,7 @@ export default function Home() {
             </div>
           )}
           {tabs.map(t=>(
-            <button key={t.id} onClick={()=>{setTipo(t.id);setSearch('');setFEmp('');setFSt('')}}
+            <button key={t.id} onClick={()=>{setTipo(t.id);setSearch('');setFEmp('');setFSt('');setFMes('')}}
               style={{padding:'.45rem 1.1rem',borderRadius:7,border:'none',fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'inherit',background:tipo===t.id?'#0097A8':'transparent',color:tipo===t.id?'#fff':'#7A919E'}}>
               {t.label}
             </button>
@@ -537,12 +574,17 @@ export default function Home() {
             <p style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:4}}>encerrados ou em execução</p>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,flex:1}}>
-            {[
+            {(isAuto ? [
               {l:'Acordo fechado',v:acFin,sv:'quitado'},
               {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
               {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
               {l:'Arquivados',v:arq,sv:'encerrados'}
-            ].map(({l,v,sv})=>(
+            ] : [
+              {l:'Acordo fechado',v:acFin,sv:'quitado'},
+              {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
+              {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
+              {l:'Pré-processuais',v:preProc,sv:'em curso'}
+            ]).map(({l,v,sv})=>(
               <div key={l} style={{background:'rgba(255,255,255,.15)',borderRadius:8,padding:'.65rem .9rem'}}>
                 <p style={{fontSize:10,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>{l}</p>
                 <p style={{fontSize:18,fontWeight:700,color:'#fff'}}>{v}</p>
@@ -553,8 +595,8 @@ export default function Home() {
         </div>
 
         <div style={s.g4}>
-          <KPI l="Total de processos" v={tot} sv={`${tot} registros`} c="#0097A8"/>
-          <KPI l="Valor da causa total" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
+          <KPI l="Total de processos" v={tot} sv={isAuto ? `${tot} registros` : tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
+          <KPI l={isAuto?"Valor da causa total":"Valores a Receber"} v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
           <KPI l="Em andamento" v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
@@ -574,6 +616,15 @@ export default function Home() {
               <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#7A919E'}}/>
               <input style={{...s.inp,paddingLeft:30,width:176}} placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
+            {isAuto && mesesDisponiveis.length > 0 && (
+              <select style={{...s.inp,fontWeight:600}} value={fMes} onChange={e=>setFMes(e.target.value)}>
+                <option value="">Todos os meses</option>
+                {mesesDisponiveis.map(m=>(
+                  <option key={m} value={m}>{mesLabel(m)}</option>
+                ))}
+              </select>
+            )}
+            {tipo==='lets'&&<select style={s.inp} value={fEmp} onChange={e=>setFEmp(e.target.value)}><option value="">Todas empresas</option><option>LETS</option><option>SALUTE</option><option>EBEC</option></select>}
             <select style={s.inp} value={fSt} onChange={e=>setFSt(e.target.value)}>
               <option value="">Todos status</option>
               {stList.map(x=><option key={x}>{x}</option>)}
@@ -585,6 +636,7 @@ export default function Home() {
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
                   {isAuto ? <>
+                    {th('Mês')}
                     {th('Nº Processo')}
                     {th('Parte Adversa')}
                     {th('Pólo')}
@@ -629,6 +681,7 @@ export default function Home() {
                   const pagas = parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {isAuto ? <>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#0097A8',fontWeight:600,whiteSpace:'nowrap'}}>{mesLabel(r.data_sinistro||'')||'—'}</td>
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E',whiteSpace:'nowrap'}}>{r.placa||'—'}</td>
                       <td style={{padding:'7px 11px',maxWidth:160,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontWeight:500}}>{r.devedor||'—'}</td>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
@@ -696,7 +749,7 @@ export default function Home() {
           <div style={{background:'#fff',borderRadius:14,width:480,padding:'1.5rem',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
               <h3 style={{fontSize:15,fontWeight:700,margin:0}}>Importar Excel</h3>
-              <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('')}} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
+              <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('');setUploadMes('')}} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
               <div>
@@ -705,6 +758,14 @@ export default function Home() {
                   {tabs.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
               </div>
+              {uploadTipo === 'autocarga' && (
+                <div>
+                  <label style={s.lb}>Mês de referência</label>
+                  <input style={s.fi} value={uploadMes} placeholder="mm/aaaa (ex: 04/2026)"
+                    onChange={e=>setUploadMes(e.target.value)}/>
+                  {uploadMes && <p style={{fontSize:11,color:'#0097A8',marginTop:4,fontWeight:600}}>📅 {mesLabel(uploadMes)}</p>}
+                </div>
+              )}
               <div>
                 <label style={s.lb}>Arquivo Excel (.xlsx)</label>
                 <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange}
@@ -717,9 +778,9 @@ export default function Home() {
               )}
             </div>
             <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:20}}>
-              <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('')}} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Cancelar</button>
-              <button onClick={handleUpload} disabled={!uploadRows.length||uploading}
-                style={{...s.btnTeal,opacity:(!uploadRows.length||uploading)?0.6:1}}>
+              <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('');setUploadMes('')}} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Cancelar</button>
+              <button onClick={handleUpload} disabled={!uploadRows.length||uploading||(uploadTipo==='autocarga'&&!uploadMes)}
+                style={{...s.btnTeal,opacity:(!uploadRows.length||uploading||(uploadTipo==='autocarga'&&!uploadMes))?0.6:1}}>
                 {uploading?'Importando...':`Importar ${uploadRows.length} registros`}
               </button>
             </div>
@@ -736,6 +797,7 @@ export default function Home() {
             </div>
             {isAuto?(
               <div style={s.fg}>
+                <FormField lb="Mês de Referência"><input style={s.fi} value={form.data_sinistro||''} placeholder="mm/aaaa" onChange={e=>set('data_sinistro',e.target.value)}/></FormField>
                 <FormField lb="Nº Processo"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Parte Adversa"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
                 <FormField lb="Pólo da Demanda"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
