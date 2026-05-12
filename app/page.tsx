@@ -12,7 +12,7 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
-  'bruno':     { senha: 'Bruno123',    nome: 'Bruno',     empresas: ['autocargas'] },
+  'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
 }
 
 const EMPRESA_LABEL: Record<Empresa, string> = {
@@ -58,8 +58,28 @@ const ST_LETS = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixad
 const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
 const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
 const ST_AUTO = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
-
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+const TEMP_DELETE_KEY = 'roesel_temp_delete'
+
+function getTempDelete(): { usuario: string; expira: number } | null {
+  try {
+    const raw = localStorage.getItem(TEMP_DELETE_KEY)
+    if (!raw) return null
+    const obj = JSON.parse(raw)
+    if (Date.now() > obj.expira) { localStorage.removeItem(TEMP_DELETE_KEY); return null }
+    return obj
+  } catch { return null }
+}
+
+function setTempDelete(usuario: string) {
+  const expira = Date.now() + 24 * 60 * 60 * 1000
+  localStorage.setItem(TEMP_DELETE_KEY, JSON.stringify({ usuario, expira }))
+}
+
+function revokeTempDelete() {
+  localStorage.removeItem(TEMP_DELETE_KEY)
+}
 
 const s = {
   page:    { minHeight:'100vh', display:'flex', flexDirection:'column' as const, fontFamily:"'DM Sans',sans-serif", background:'#F2F6F8', color:'#1A2B38' },
@@ -111,6 +131,14 @@ function mesLabel(mmaaaa: string): string {
   const [mm, aaaa] = mmaaaa.split('/')
   const nome = MESES[parseInt(mm) - 1] || mm
   return `${nome}/${aaaa}`
+}
+
+function tempoRestante(expira: number): string {
+  const diff = expira - Date.now()
+  if (diff <= 0) return 'expirado'
+  const h = Math.floor(diff / 3600000)
+  const m = Math.floor((diff % 3600000) / 60000)
+  return `${h}h ${m}m`
 }
 
 function KPI({ l, v, sv, c }: { l:string; v:string|number; sv?:string; c:string }) {
@@ -275,6 +303,8 @@ export default function Home() {
   const [uploadRows, setUploadRows] = useState<any[]>([])
   const [uploadFileName, setUploadFileName] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [tempDelete, setTempDeleteState] = useState<{ usuario: string; expira: number } | null>(null)
+  const [permModal, setPermModal] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
@@ -282,8 +312,32 @@ export default function Home() {
   const tabs = TABS_POR_EMPRESA[empresa] || []
   const userInfo = Object.values(USUARIOS).find(u => u.nome === user)
   const empresasDoUsuario = userInfo?.empresas || [empresa]
-  const podeExcluir = user === 'Claudiane'
   const isAuto = tipo === 'autocarga'
+
+  const podeExcluir = user === 'Claudiane' || (tempDelete?.usuario === user && Date.now() < (tempDelete?.expira || 0))
+
+  useEffect(() => {
+    const td = getTempDelete()
+    setTempDeleteState(td)
+    const interval = setInterval(() => {
+      const td2 = getTempDelete()
+      setTempDeleteState(td2)
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const concederPermissao = (nomeUsuario: string) => {
+    setTempDelete(nomeUsuario)
+    setTempDeleteState(getTempDelete())
+    setPermModal(false)
+    showToast(`Permissão de exclusão concedida a ${nomeUsuario} por 24h!`)
+  }
+
+  const revogarPermissao = () => {
+    revokeTempDelete()
+    setTempDeleteState(null)
+    showToast('Permissão revogada!')
+  }
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -374,7 +428,6 @@ export default function Home() {
       }
     })
     if (mesDetectado) setUploadMes(mesDetectado)
-
     const reader = new FileReader()
     reader.onload = (ev) => {
       const wb = XLSX.read(ev.target?.result, { type: 'binary' })
@@ -546,6 +599,11 @@ export default function Home() {
           <span>{conn===true?'conectado':conn===false?'erro':'conectando...'}</span>
           <span style={{margin:'0 4px'}}>|</span>
           <span>👤 {user}</span>
+          {user==='Claudiane' && (
+            <button onClick={()=>setPermModal(true)} style={{...s.btnOut,padding:'3px 10px',fontSize:11,color:'#8E44AD',borderColor:'#F4EEF9'}}>
+              🔑 Permissões
+            </button>
+          )}
           <button onClick={()=>setLogado(false)} style={{...s.btnOut,padding:'3px 10px',fontSize:11,color:'#E74C3C',borderColor:'#FDECEA'}}>Sair</button>
         </div>
       </header>
@@ -561,6 +619,12 @@ export default function Home() {
             <button onClick={openNew} style={s.btnTeal}><Plus size={16}/> Nova demanda</button>
           </div>
         </div>
+
+        {user==='Bruno' && podeExcluir && tempDelete && (
+          <div style={{background:'#FEF5EB',border:'1px solid #F0A500',borderRadius:10,padding:'10px 16px',marginBottom:16,fontSize:12,color:'#7A5200',display:'flex',alignItems:'center',gap:8}}>
+            ⏳ Você tem permissão temporária de exclusão por mais <strong>{tempoRestante(tempDelete.expira)}</strong>
+          </div>
+        )}
 
         <div style={s.feat}>
           <div style={{position:'absolute',right:-40,top:-40,width:192,height:192,borderRadius:'50%',background:'rgba(255,255,255,.1)'}}/>
@@ -633,36 +697,17 @@ export default function Home() {
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
                   {isAuto ? <>
-                    {th('Mês')}
-                    {th('Nº Processo')}
-                    {th('Parte Adversa')}
-                    {th('Pólo')}
-                    {th('Juízo')}
-                    {th('Comarca/UF')}
-                    {th('Natureza')}
-                    {th('Valor da Causa')}
-                    {th('Valor Passivo')}
-                    {th('Status')}
-                    {th('Por')}
-                    {th('Andamento')}
+                    {th('Mês')}{th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Juízo')}{th('Comarca/UF')}{th('Natureza')}{th('Valor da Causa')}{th('Valor Passivo')}{th('Status')}{th('Por')}{th('Andamento')}
                   </> : <>
                     {showPlaca&&th('Placa V1')}
                     {th(tipo==='lets'?'Cliente':'Devedor')}
                     {th('CPF/CNPJ')}
                     {th(tipo==='lets'?'Terceiro':'Telefone')}
-                    {th('Email')}
-                    {th('Responsável')}
-                    {th('Dt. Evento')}
-                    {th('Dt. Envio')}
+                    {th('Email')}{th('Responsável')}{th('Dt. Evento')}{th('Dt. Envio')}
                     {tipo==='lets'&&th('Empresa')}
                     {tipo==='avarias'&&th('Placa 3º')}
                     {(tipo==='cobr'||tipo==='avarias')&&th('Fato Gerador')}
-                    {th('Valores a Receber')}
-                    {th('Parcelas')}
-                    {th('Atraso')}
-                    {th('Status')}
-                    {th('Por')}
-                    {th('Andamento')}
+                    {th('Valores a Receber')}{th('Parcelas')}{th('Atraso')}{th('Status')}{th('Por')}{th('Andamento')}
                   </>}
                   {podeExcluir&&th('Ações')}
                 </tr>
@@ -704,18 +749,10 @@ export default function Home() {
                       {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
                       <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'||tipo==='letspf'?r.danos:r.saldo)}</td>
                       <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
-                        {parc.length > 0
-                          ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span>
-                          : <span style={{color:'#7A919E'}}>—</span>
-                        }
+                        {parc.length > 0 ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span> : <span style={{color:'#7A919E'}}>—</span>}
                       </td>
                       <td style={{padding:'7px 11px'}}>
-                        {atraso
-                          ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>
-                              {atraso.parcelas > 0 ? `${atraso.parcelas}p · ` : ''}{atraso.dias}d
-                            </span>
-                          : <span style={{color:'#7A919E',fontSize:11}}>—</span>
-                        }
+                        {atraso ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>{atraso.parcelas > 0 ? `${atraso.parcelas}p · ` : ''}{atraso.dias}d</span> : <span style={{color:'#7A919E',fontSize:11}}>—</span>}
                       </td>
                       <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
                       <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
@@ -741,6 +778,35 @@ export default function Home() {
         <p style={{fontSize:11,color:'#7A919E'}}>© 2025</p>
       </footer>
 
+      {/* Modal Permissões — só Claudiane */}
+      {permModal&&(
+        <div style={{...s.overlay,alignItems:'center',paddingTop:0}}>
+          <div style={{background:'#fff',borderRadius:14,width:400,padding:'1.5rem',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <h3 style={{fontSize:15,fontWeight:700,margin:0}}>🔑 Permissões temporárias</h3>
+              <button onClick={()=>setPermModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
+            </div>
+            {tempDelete ? (
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <div style={{background:'#EAF7EE',borderRadius:8,padding:'12px 14px'}}>
+                  <p style={{fontSize:13,fontWeight:600,color:'#27AE60',margin:0}}>✅ {tempDelete.usuario} pode excluir</p>
+                  <p style={{fontSize:11,color:'#7A919E',margin:'4px 0 0'}}>Expira em {tempoRestante(tempDelete.expira)}</p>
+                </div>
+                <button onClick={revogarPermissao} style={{...s.btnRed,justifyContent:'center'}}>Revogar permissão</button>
+              </div>
+            ) : (
+              <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                <p style={{fontSize:13,color:'#7A919E',margin:0}}>Conceder permissão de exclusão por 24 horas:</p>
+                <button onClick={()=>concederPermissao('Bruno')}
+                  style={{...s.btnTeal,justifyContent:'center',background:'#8E44AD'}}>
+                  🔑 Conceder a Bruno por 24h
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {uploadModal&&(
         <div style={{...s.overlay,alignItems:'center',paddingTop:0}}>
           <div style={{background:'#fff',borderRadius:14,width:480,padding:'1.5rem',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
@@ -758,15 +824,13 @@ export default function Home() {
               {uploadTipo === 'autocarga' && (
                 <div>
                   <label style={s.lb}>Mês de referência</label>
-                  <input style={s.fi} value={uploadMes} placeholder="mm/aaaa (ex: 04/2026)"
-                    onChange={e=>setUploadMes(e.target.value)}/>
+                  <input style={s.fi} value={uploadMes} placeholder="mm/aaaa (ex: 04/2026)" onChange={e=>setUploadMes(e.target.value)}/>
                   {uploadMes && <p style={{fontSize:11,color:'#0097A8',marginTop:4,fontWeight:600}}>📅 {mesLabel(uploadMes)}</p>}
                 </div>
               )}
               <div>
                 <label style={s.lb}>Arquivo Excel (.xlsx)</label>
-                <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange}
-                  style={{...s.fi, padding:'6px 10px', cursor:'pointer'}}/>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{...s.fi, padding:'6px 10px', cursor:'pointer'}}/>
               </div>
               {uploadRows.length > 0 && (
                 <div style={{background:'#EAF7EE',borderRadius:8,padding:'10px 14px',fontSize:13,color:'#27AE60',fontWeight:600}}>
