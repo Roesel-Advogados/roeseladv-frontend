@@ -12,7 +12,7 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
-  'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
+  'bruno':     { senha: 'Bruno123',    nome: 'Bruno',     empresas: ['autocargas'] },
 }
 
 const EMPRESA_LABEL: Record<Empresa, string> = {
