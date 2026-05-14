@@ -11,7 +11,7 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas'] },
   'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
-  'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
+  'autocarga':  { senha: 'Autocarga321', nome: 'Autocarga',  empresas: ['autocargas'] },
   'bruno':     { senha: 'Bruno123',    nome: 'Bruno',     empresas: ['autocargas'] },
 }
 
