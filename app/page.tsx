@@ -5,19 +5,21 @@ import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 import * as XLSX from 'xlsx'
 
 type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias' | 'autocarga'
-type Empresa = 'roesel' | 'autocargas'
+type Empresa = 'roesel' | 'autocargas' | 'demo'
 
 const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[] }> = {
   'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas'] },
   'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
-  'autocarga':  { senha: 'Autocarga321', nome: 'Autocarga',  empresas: ['autocargas'] },
-  'bruno':     { senha: 'Bruno123',    nome: 'Bruno',     empresas: ['autocargas'] },
+  'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
+  'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
+  'demo':      { senha: 'Demo123',     nome: 'Demo',      empresas: ['demo'] },
 }
 
 const EMPRESA_LABEL: Record<Empresa, string> = {
   roesel: 'Vix',
   autocargas: 'Autocargas',
+  demo: 'Roesel',
 }
 
 const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
@@ -30,6 +32,56 @@ const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
   ],
   autocargas: [
     { id: 'autocarga', label: 'Auto Carga' },
+  ],
+  demo: [
+    { id: 'lets',      label: "Let's" },
+    { id: 'letspf',    label: "Let's PF" },
+    { id: 'vix',       label: 'Vix - 1' },
+    { id: 'cobr',      label: 'Vix - Cobrança' },
+    { id: 'avarias',   label: 'Vix - Avarias' },
+  ],
+}
+
+// Dados fictícios para demonstração
+const DEMO_DATA: Record<string, Demanda[]> = {
+  lets: [
+    { id:1, tipo:'lets', placa:'ABC-1234', cliente:'Transportadora Alpha Ltda', terceiro:'João Pereira Silva', contato:'(27) 99999-1111', empresa:'LETS', data_sinistro:'12/01/2025', danos:8500, saldo:0, status:'Em andamento', fato_gerador:'Em tratativa', andamento:'Contato realizado com o terceiro. Aguardando proposta de acordo.', atualizado_por:'Sistema', parcelas:[] },
+    { id:2, tipo:'lets', placa:'DEF-5678', cliente:'Locadora Beta S/A', terceiro:'Maria Santos Oliveira', contato:'(27) 98888-2222', empresa:'SALUTE', data_sinistro:'05/02/2025', danos:12300, saldo:0, status:'Acordo fechado', fato_gerador:'Acordo finalizado', andamento:'Acordo firmado no valor de R$ 10.000. Aguardando pagamento.', atualizado_por:'Sistema', parcelas:[{numero:1,valor:5000,vencimento:'10/04/2025',pago:true,data_pagamento:'10/04/2025'},{numero:2,valor:5000,vencimento:'10/05/2025',pago:false}] },
+    { id:3, tipo:'lets', placa:'GHI-9012', cliente:'Empresa Gama Transportes', terceiro:'Carlos Eduardo Mendes', contato:'(27) 97777-3333', empresa:'EBEC', data_sinistro:'20/02/2025', danos:4200, saldo:0, status:'Pré-processual', fato_gerador:'Notif. extrajudicial', andamento:'Notificação extrajudicial enviada. Prazo de resposta: 15 dias.', atualizado_por:'Sistema', parcelas:[] },
+    { id:4, tipo:'lets', placa:'JKL-3456', cliente:'Transportadora Delta ME', terceiro:'Ana Paula Rodrigues', contato:'(27) 96666-4444', empresa:'LETS', data_sinistro:'08/03/2025', danos:6800, saldo:0, status:'Arquivado', fato_gerador:'Sem êxito', andamento:'Terceiro não localizado após diversas tentativas. Processo arquivado.', atualizado_por:'Sistema', parcelas:[] },
+    { id:5, tipo:'lets', placa:'MNO-7890', cliente:'Locadora Épsilon Ltda', terceiro:'Roberto Ferreira Costa', contato:'(27) 95555-5555', empresa:'SALUTE', data_sinistro:'15/03/2025', danos:9100, saldo:0, status:'Em andamento', fato_gerador:'Tratativa c/ seguradora', andamento:'Em negociação com a seguradora do terceiro. Proposta enviada.', atualizado_por:'Sistema', parcelas:[] },
+    { id:6, tipo:'lets', placa:'PQR-2345', cliente:'Transportes Zeta S/A', terceiro:'Fernanda Lima Souza', contato:'(27) 94444-6666', empresa:'EBEC', data_sinistro:'01/04/2025', danos:15600, saldo:0, status:'Descumprimento de acordo', fato_gerador:'Acordo em andamento', andamento:'Acordo firmado porém terceiro não cumpriu o pagamento. Iniciando medidas judiciais.', atualizado_por:'Sistema', parcelas:[{numero:1,valor:5000,vencimento:'01/03/2025',pago:true,data_pagamento:'01/03/2025'},{numero:2,valor:5000,vencimento:'01/04/2025',pago:false,dias_atraso:30},{numero:3,valor:5600,vencimento:'01/05/2025',pago:false,dias_atraso:0}] },
+    { id:7, tipo:'lets', placa:'STU-6789', cliente:'Locadora Eta ME', terceiro:'Paulo Henrique Alves', contato:'(27) 93333-7777', empresa:'LETS', data_sinistro:'10/04/2025', danos:3400, saldo:0, status:'Devolvido', fato_gerador:'Falta de documentação', andamento:'Processo devolvido por falta de documentação. Aguardando envio pelo cliente.', atualizado_por:'Sistema', parcelas:[] },
+    { id:8, tipo:'lets', placa:'VWX-0123', cliente:'Transportadora Teta Ltda', terceiro:'Juliana Martins Pereira', contato:'(27) 92222-8888', empresa:'SALUTE', data_sinistro:'20/04/2025', danos:7200, saldo:0, status:'Em andamento', fato_gerador:'Em tratativa', andamento:'Primeira reunião realizada. Terceiro demonstrou interesse em acordo.', atualizado_por:'Sistema', parcelas:[] },
+  ],
+  letspf: [
+    { id:10, tipo:'letspf', cliente:'LETS RENT A CAR S/A', devedor:'Adriano Souza Lima', telefone:'(27) 99111-2222', email:'adriano.lima@email.com', cpf_cnpj:'123.456.789-00', data_sinistro:'04/2025', danos:1250.50, saldo:1250.50, status:'Em tratativa', fato_gerador:'Em tratativa', andamento:'Em tratativa com o devedor.', atualizado_por:'Sistema', parcelas:[] },
+    { id:11, tipo:'letspf', cliente:'LETS RENT A CAR S/A', devedor:'Beatriz Almeida Costa', telefone:'(27) 98222-3333', email:'beatriz.costa@email.com', cpf_cnpj:'234.567.890-11', data_sinistro:'04/2025', danos:3200.00, saldo:3200.00, status:'Em andamento', fato_gerador:'Em tratativa', andamento:'Contato iniciado. Aguardando retorno.', atualizado_por:'Sistema', parcelas:[] },
+    { id:12, tipo:'letspf', cliente:'LETS RENT A CAR S/A', devedor:'Carlos Henrique Rocha', telefone:'(27) 97333-4444', email:'carlos.rocha@email.com', cpf_cnpj:'345.678.901-22', data_sinistro:'04/2025', danos:890.75, saldo:890.75, status:'Acordo fechado', fato_gerador:'Acordo finalizado', andamento:'Acordo realizado. Pagamento confirmado.', atualizado_por:'Sistema', parcelas:[{numero:1,valor:890.75,vencimento:'15/04/2025',pago:true,data_pagamento:'15/04/2025'}] },
+    { id:13, tipo:'letspf', cliente:'LETS RENT A CAR S/A', devedor:'Diana Ferreira Santos', telefone:'(27) 96444-5555', email:'diana.santos@email.com', cpf_cnpj:'456.789.012-33', data_sinistro:'04/2025', danos:5600.00, saldo:5600.00, status:'Em tratativa', fato_gerador:'Em tratativa', andamento:'Proposta enviada. Prazo de análise: 7 dias.', atualizado_por:'Sistema', parcelas:[] },
+    { id:14, tipo:'letspf', cliente:'LETS RENT A CAR S/A', devedor:'Eduardo Nascimento Dias', telefone:'(27) 95555-6666', email:'eduardo.dias@email.com', cpf_cnpj:'567.890.123-44', data_sinistro:'04/2025', danos:2100.00, saldo:2100.00, status:'Arquivado', fato_gerador:'Sem êxito', andamento:'Devedor não localizado. Processo arquivado.', atualizado_por:'Sistema', parcelas:[] },
+    { id:15, tipo:'letspf', cliente:'LETS RENT A CAR S/A', devedor:'Fabiana Gomes Teixeira', telefone:'(27) 94666-7777', email:'fabiana.teixeira@email.com', cpf_cnpj:'678.901.234-55', data_sinistro:'04/2025', danos:4500.00, saldo:4500.00, status:'Em andamento', fato_gerador:'Em tratativa', andamento:'Em negociação de parcelamento.', atualizado_por:'Sistema', parcelas:[] },
+  ],
+  vix: [
+    { id:20, tipo:'vix', devedor:'Gabriel Oliveira Pinto', telefone:'(27) 99888-1010', saldo:4500, status:'Em tratativa', fato_gerador:'Em tratativa', andamento:'Notificação enviada. Aguardando resposta em 10 dias.', atualizado_por:'Sistema', parcelas:[] },
+    { id:21, tipo:'vix', devedor:'Helena Vieira Campos', telefone:'(27) 98777-2020', saldo:8900, status:'Pré-processual', fato_gerador:'Pré-processual', andamento:'Prazo extrajudicial esgotado. Iniciando procedimento judicial.', atualizado_por:'Sistema', parcelas:[] },
+    { id:22, tipo:'vix', devedor:'Igor Carvalho Nunes', telefone:'(27) 97666-3030', saldo:2300, status:'Débito quitado', fato_gerador:'Acordo finalizado', andamento:'Débito quitado integralmente em 15/03/2025.', atualizado_por:'Sistema', parcelas:[{numero:1,valor:2300,vencimento:'15/03/2025',pago:true,data_pagamento:'15/03/2025'}] },
+    { id:23, tipo:'vix', devedor:'Joana Ribeiro Freitas', telefone:'(27) 96555-4040', saldo:6700, status:'Acordo em atraso', fato_gerador:'Acordo em andamento', andamento:'Parcelas em atraso. Cobranças realizadas sem sucesso.', atualizado_por:'Sistema', parcelas:[{numero:1,valor:2233,vencimento:'01/03/2025',pago:true,data_pagamento:'01/03/2025'},{numero:2,valor:2233,vencimento:'01/04/2025',pago:false,dias_atraso:30},{numero:3,valor:2234,vencimento:'01/05/2025',pago:false}] },
+    { id:24, tipo:'vix', devedor:'Kleber Andrade Lima', telefone:'(27) 95444-5050', saldo:11200, status:'Em tratativa', fato_gerador:'Em tratativa', andamento:'Reunião agendada para próxima semana.', atualizado_por:'Sistema', parcelas:[] },
+    { id:25, tipo:'vix', devedor:'Luciana Barbosa Cruz', telefone:'(27) 94333-6060', saldo:3100, status:'Arquivado', fato_gerador:'Sem êxito', andamento:'Sem êxito após esgotadas todas as tentativas.', atualizado_por:'Sistema', parcelas:[] },
+  ],
+  cobr: [
+    { id:30, tipo:'cobr', devedor:'Marcos Pereira Lopes', telefone:'(27) 99222-7070', saldo:5400, status:'Em tratativa', fato_gerador:'Em tratativa', andamento:'Proposta de parcelamento enviada ao devedor.', atualizado_por:'Sistema', parcelas:[] },
+    { id:31, tipo:'cobr', devedor:'Natália Souza Moreira', telefone:'(27) 98111-8080', saldo:9800, status:'Acordo fechado', fato_gerador:'Acordo finalizado', andamento:'Acordo firmado em 3 parcelas. Pagamentos em dia.', atualizado_por:'Sistema', parcelas:[{numero:1,valor:3266,vencimento:'01/03/2025',pago:true,data_pagamento:'01/03/2025'},{numero:2,valor:3266,vencimento:'01/04/2025',pago:true,data_pagamento:'01/04/2025'},{numero:3,valor:3268,vencimento:'01/05/2025',pago:false}] },
+    { id:32, tipo:'cobr', devedor:'Otávio Castro Ramos', telefone:'(27) 97000-9090', saldo:2700, status:'Arquivado', fato_gerador:'Sem êxito', andamento:'Processo encerrado por prescrição.', atualizado_por:'Sistema', parcelas:[] },
+    { id:33, tipo:'cobr', devedor:'Patrícia Mendes Faria', telefone:'(27) 96999-0101', saldo:7200, status:'Em tratativa', fato_gerador:'Em tratativa', andamento:'Segunda tentativa de contato realizada com sucesso.', atualizado_por:'Sistema', parcelas:[] },
+  ],
+  avarias: [
+    { id:40, tipo:'avarias', placa:'RST-1122', devedor:'Quintino Alves Borges', terceiro:'XYZ-9988', telefone:'(27) 99555-1212', saldo:3800, status:'Em tratativa', fato_gerador:'Em tratativa', andamento:'Orçamento do reparo enviado ao responsável.', atualizado_por:'Sistema', parcelas:[] },
+    { id:41, tipo:'avarias', placa:'UVW-3344', devedor:'Renata Leal Cunha', terceiro:'ABC-7766', telefone:'(27) 98444-2323', saldo:6200, status:'Pré-processual', fato_gerador:'Pré-processual', andamento:'Terceiro recusou acordo. Iniciando procedimento judicial.', atualizado_por:'Sistema', parcelas:[] },
+    { id:42, tipo:'avarias', placa:'XYZ-5566', devedor:'Sérgio Monteiro Dias', terceiro:'DEF-5544', telefone:'(27) 97333-3434', saldo:1900, status:'Acordo fechado', fato_gerador:'Acordo finalizado', andamento:'Ressarcimento pago integralmente em 20/03/2025.', atualizado_por:'Sistema', parcelas:[{numero:1,valor:1900,vencimento:'20/03/2025',pago:true,data_pagamento:'20/03/2025'}] },
+    { id:43, tipo:'avarias', placa:'ABC-7788', devedor:'Tatiane Corrêa Neves', terceiro:'GHI-3322', telefone:'(27) 96222-4545', saldo:5100, status:'Em tratativa', fato_gerador:'Tratativa c/ seguradora', andamento:'Seguradora do terceiro assumiu o sinistro. Aguardando vistoria.', atualizado_por:'Sistema', parcelas:[] },
+    { id:44, tipo:'avarias', placa:'DEF-9900', devedor:'Ulisses Figueiredo Silva', terceiro:'JKL-1100', telefone:'(27) 95111-5656', saldo:8700, status:'Arquivado', fato_gerador:'Sem êxito', andamento:'Terceiro não identificado. Processo arquivado.', atualizado_por:'Sistema', parcelas:[] },
   ],
 }
 
@@ -59,7 +111,6 @@ const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente as
 const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
 const ST_AUTO = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-
 const TEMP_DELETE_KEY = 'roesel_temp_delete'
 
 function getTempDelete(): { usuario: string; expira: number } | null {
@@ -77,9 +128,7 @@ function setTempDelete(usuario: string) {
   localStorage.setItem(TEMP_DELETE_KEY, JSON.stringify({ usuario, expira }))
 }
 
-function revokeTempDelete() {
-  localStorage.removeItem(TEMP_DELETE_KEY)
-}
+function revokeTempDelete() { localStorage.removeItem(TEMP_DELETE_KEY) }
 
 const s = {
   page:    { minHeight:'100vh', display:'flex', flexDirection:'column' as const, fontFamily:"'DM Sans',sans-serif", background:'#F2F6F8', color:'#1A2B38' },
@@ -118,13 +167,8 @@ function maskDate(val: string): string {
   return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`
 }
 
-function toNum(v: any): number {
-  return parseFloat(String(v||'0').replace(',','.')) || 0
-}
-
-function str(v: any): string {
-  return v == null ? '' : String(v).trim()
-}
+function toNum(v: any): number { return parseFloat(String(v||'0').replace(',','.')) || 0 }
+function str(v: any): string { return v == null ? '' : String(v).trim() }
 
 function mesLabel(mmaaaa: string): string {
   if (!mmaaaa) return ''
@@ -162,75 +206,56 @@ function FormField({ lb: label, children }: { lb:string; children:React.ReactNod
 
 function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange: (p: Parcela[]) => void }) {
   const [rawVals, setRawVals] = useState<string[]>(() => parcelas.map(p => String(p.valor||'')))
-
   const addParcela = () => {
     const nova: Parcela = { numero: parcelas.length + 1, valor: 0, vencimento: '', pago: false, data_pagamento: '' }
     setRawVals(prev => [...prev, ''])
     onChange([...parcelas, nova])
   }
-
   const removeParcela = (i: number) => {
     setRawVals(prev => prev.filter((_, idx) => idx !== i))
     onChange(parcelas.filter((_, idx) => idx !== i))
   }
-
   const updateParcela = (i: number, key: keyof Parcela, val: any) => {
     const updated = parcelas.map((p, idx) => {
       if (idx !== i) return p
       const novo = { ...p, [key]: val }
-      if (key === 'pago' && val && !novo.data_pagamento) {
-        novo.data_pagamento = new Date().toLocaleDateString('pt-BR')
-      }
+      if (key === 'pago' && val && !novo.data_pagamento) novo.data_pagamento = new Date().toLocaleDateString('pt-BR')
       return novo
     })
     onChange(updated)
   }
-
   const commitValor = (i: number, raw: string) => {
     const num = toNum(raw)
     setRawVals(prev => { const n=[...prev]; n[i]=String(num); return n })
     updateParcela(i, 'valor', num)
   }
-
   return (
     <div style={{ gridColumn:'1/-1', border:'1.5px solid #DDE5EA', borderRadius:8, overflow:'hidden' }}>
       <div style={{ background:'#FAFCFD', padding:'8px 12px', borderBottom:'1px solid #DDE5EA', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <span style={{ fontSize:10, fontWeight:700, color:'#7A919E', textTransform:'uppercase', letterSpacing:'.05em' }}>Parcelas do acordo ({parcelas.length})</span>
         <button onClick={addParcela} type="button" style={{ ...s.btnTeal, padding:'3px 10px', fontSize:11 }}>+ Parcela</button>
       </div>
-      {parcelas.length === 0 && <p style={{ padding:'12px', fontSize:12, color:'#7A919E', margin:0 }}>Nenhuma parcela. Clique em + Parcela para adicionar.</p>}
+      {parcelas.length === 0 && <p style={{ padding:'12px', fontSize:12, color:'#7A919E', margin:0 }}>Nenhuma parcela.</p>}
       {parcelas.map((p, i) => (
-        <div key={i} style={{ display:'grid', gridTemplateColumns:'40px 1fr 1fr 80px 1fr 24px', gap:8, padding:'8px 12px', borderBottom:'1px solid #DDE5EA', alignItems:'center', background: p.pago ? '#F0FFF4' : p.dias_atraso && p.dias_atraso > 0 ? '#FFF5F5' : '#fff' }}>
+        <div key={i} style={{ display:'grid', gridTemplateColumns:'40px 1fr 1fr 80px 1fr 24px', gap:8, padding:'8px 12px', borderBottom:'1px solid #DDE5EA', alignItems:'center', background: p.pago ? '#F0FFF4' : '#fff' }}>
           <span style={{ fontSize:11, fontWeight:700, color:'#7A919E' }}>#{p.numero}</span>
           <div>
             <label style={{ ...s.lb, marginBottom:2 }}>Valor</label>
-            <input type="text" inputMode="decimal" style={{ ...s.fi, fontSize:12 }}
-              value={rawVals[i]??''} placeholder="0,00"
+            <input type="text" inputMode="decimal" style={{ ...s.fi, fontSize:12 }} value={rawVals[i]??''} placeholder="0,00"
               onChange={e => { const n=[...rawVals]; n[i]=e.target.value; setRawVals(n) }}
-              onBlur={e => commitValor(i, e.target.value)}
-            />
+              onBlur={e => commitValor(i, e.target.value)}/>
           </div>
           <div>
             <label style={{ ...s.lb, marginBottom:2 }}>Vencimento</label>
-            <input style={{ ...s.fi, fontSize:12 }} placeholder="dd/mm/aaaa"
-              value={p.vencimento||''}
-              onChange={e=>updateParcela(i,'vencimento', maskDate(e.target.value))}
-            />
+            <input style={{ ...s.fi, fontSize:12 }} placeholder="dd/mm/aaaa" value={p.vencimento||''} onChange={e=>updateParcela(i,'vencimento', maskDate(e.target.value))}/>
           </div>
           <div style={{ textAlign:'center' }}>
             <label style={{ ...s.lb, marginBottom:2 }}>Pago?</label>
             <input type="checkbox" checked={p.pago||false} onChange={e=>updateParcela(i,'pago',e.target.checked)} style={{ width:16, height:16, cursor:'pointer' }}/>
           </div>
           <div>
-            <label style={{ ...s.lb, marginBottom:2 }}>
-              {p.pago ? 'Pago em' : p.dias_atraso && p.dias_atraso > 0 ? `⚠️ ${p.dias_atraso}d atraso` : 'Situação'}
-            </label>
-            {p.pago
-              ? <input style={{ ...s.fi, fontSize:12, background:'#F0FFF4' }} value={p.data_pagamento||''} readOnly/>
-              : <span style={{ fontSize:12, color: p.dias_atraso && p.dias_atraso > 0 ? '#E74C3C' : '#27AE60', fontWeight:600 }}>
-                  {p.dias_atraso && p.dias_atraso > 0 ? 'Em atraso' : 'Em dia'}
-                </span>
-            }
+            <label style={{ ...s.lb, marginBottom:2 }}>{p.pago ? 'Pago em' : 'Situação'}</label>
+            {p.pago ? <input style={{ ...s.fi, fontSize:12, background:'#F0FFF4' }} value={p.data_pagamento||''} readOnly/> : <span style={{ fontSize:12, color:'#27AE60', fontWeight:600 }}>Em dia</span>}
           </div>
           <button onClick={()=>removeParcela(i)} type="button" style={{ background:'none', border:'none', cursor:'pointer', color:'#E74C3C', fontSize:16, padding:0 }}>×</button>
         </div>
@@ -246,32 +271,18 @@ function LoginScreen({ onLogin }: { onLogin:(nome:string, empresa: Empresa)=>voi
   const handleLogin = () => {
     const key = login.trim().toLowerCase()
     const u = USUARIOS[key]
-    if (u && u.senha === senha) {
-      onLogin(u.nome, u.empresas[0])
-    } else {
-      setErro('Usuário ou senha incorretos.')
-      setTimeout(() => setErro(''), 3000)
-    }
+    if (u && u.senha === senha) { onLogin(u.nome, u.empresas[0]) }
+    else { setErro('Usuário ou senha incorretos.'); setTimeout(() => setErro(''), 3000) }
   }
   return (
     <div style={{ minHeight:'100vh', background:'#F2F6F8', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ background:'#fff', borderRadius:16, padding:'2.5rem 2rem', width:360, boxShadow:'0 8px 40px rgba(0,151,168,.15)', display:'flex', flexDirection:'column', alignItems:'center', gap:20 }}>
         <img src="/logo.jpg" alt="Roesel" style={{ height:140, objectFit:'contain', maxWidth:320, marginBottom:8 }} onError={e=>(e.currentTarget.style.display='none')}/>
         <div style={{ width:'100%', display:'flex', flexDirection:'column', gap:12 }}>
-          <div>
-            <label style={s.lb}>Usuário</label>
-            <input style={{ ...s.fi, fontSize:14 }} placeholder="Digite seu usuário" value={login}
-              onChange={e=>setLogin(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
-          </div>
-          <div>
-            <label style={s.lb}>Senha</label>
-            <input type="password" style={{ ...s.fi, fontSize:14 }} placeholder="Digite sua senha" value={senha}
-              onChange={e=>setSenha(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/>
-          </div>
+          <div><label style={s.lb}>Usuário</label><input style={{ ...s.fi, fontSize:14 }} placeholder="Digite seu usuário" value={login} onChange={e=>setLogin(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/></div>
+          <div><label style={s.lb}>Senha</label><input type="password" style={{ ...s.fi, fontSize:14 }} placeholder="Digite sua senha" value={senha} onChange={e=>setSenha(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()}/></div>
           {erro && <p style={{ fontSize:12, color:'#E74C3C', textAlign:'center', margin:0 }}>{erro}</p>}
-          <button onClick={handleLogin} style={{ ...s.btnTeal, justifyContent:'center', width:'100%', padding:'.75rem', fontSize:14, borderRadius:9, marginTop:4 }}>
-            Entrar
-          </button>
+          <button onClick={handleLogin} style={{ ...s.btnTeal, justifyContent:'center', width:'100%', padding:'.75rem', fontSize:14, borderRadius:9, marginTop:4 }}>Entrar</button>
         </div>
       </div>
     </div>
@@ -309,49 +320,43 @@ export default function Home() {
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
+  const isDemo = empresa === 'demo'
   const tabs = TABS_POR_EMPRESA[empresa] || []
   const userInfo = Object.values(USUARIOS).find(u => u.nome === user)
   const empresasDoUsuario = userInfo?.empresas || [empresa]
   const isAuto = tipo === 'autocarga'
-
-  const podeExcluir = user === 'Claudiane' || (tempDelete?.usuario === user && Date.now() < (tempDelete?.expira || 0))
+  const podeExcluir = !isDemo && (user === 'Claudiane' || (tempDelete?.usuario === user && Date.now() < (tempDelete?.expira || 0)))
 
   useEffect(() => {
-    const td = getTempDelete()
-    setTempDeleteState(td)
-    const interval = setInterval(() => {
-      const td2 = getTempDelete()
-      setTempDeleteState(td2)
-    }, 60000)
+    const td = getTempDelete(); setTempDeleteState(td)
+    const interval = setInterval(() => setTempDeleteState(getTempDelete()), 60000)
     return () => clearInterval(interval)
   }, [])
 
   const concederPermissao = (nomeUsuario: string) => {
-    setTempDelete(nomeUsuario)
-    setTempDeleteState(getTempDelete())
-    setPermModal(false)
-    showToast(`Permissão de exclusão concedida a ${nomeUsuario} por 24h!`)
+    setTempDelete(nomeUsuario); setTempDeleteState(getTempDelete()); setPermModal(false)
+    showToast(`Permissão concedida a ${nomeUsuario} por 24h!`)
   }
-
-  const revogarPermissao = () => {
-    revokeTempDelete()
-    setTempDeleteState(null)
-    showToast('Permissão revogada!')
-  }
+  const revogarPermissao = () => { revokeTempDelete(); setTempDeleteState(null); showToast('Permissão revogada!') }
 
   const load = useCallback(async (silent = false) => {
+    if (isDemo) {
+      setData(DEMO_DATA[tipo] || [])
+      setConn(true)
+      setLoading(false)
+      return
+    }
     if (!silent) setLoading(true)
     try { const d = await api.listar(tipo); setData(d); setConn(true) }
     catch { setConn(false); if (!silent) showToast('Erro ao carregar', false) }
     finally { if (!silent) setLoading(false) }
-  }, [tipo])
+  }, [tipo, isDemo])
 
   useEffect(()=>{ if(logado && tabs.length > 0) load() },[load, logado])
-  useEffect(()=>{ if(!logado) return; const t=setInterval(()=>load(true),30000);return()=>clearInterval(t) },[load, logado])
+  useEffect(()=>{ if(!logado||isDemo) return; const t=setInterval(()=>load(true),30000);return()=>clearInterval(t) },[load, logado, isDemo])
 
   const handleLogin = (nome: string, emp: Empresa) => {
-    setUser(nome)
-    setEmpresa(emp)
+    setUser(nome); setEmpresa(emp)
     const primeiraTab = TABS_POR_EMPRESA[emp]?.[0]
     if (primeiraTab) setTipo(primeiraTab.id)
     setLogado(true)
@@ -360,10 +365,7 @@ export default function Home() {
   if (!logado) return <LoginScreen onLogin={handleLogin}/>
 
   const stList = isAuto ? ST_AUTO : tipo === 'lets' || tipo === 'letspf' ? ST_LETS : tipo === 'vix' ? ST_VIX : ST_COBR
-
-  const mesesDisponiveis: string[] = isAuto
-    ? Array.from(new Set(data.map(r => r.data_sinistro).filter((m): m is string => !!m))).sort()
-    : []
+  const mesesDisponiveis: string[] = isAuto ? Array.from(new Set(data.map(r => r.data_sinistro).filter((m): m is string => !!m))).sort() : []
 
   const blank = () => ({
     tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa:'',
@@ -375,37 +377,34 @@ export default function Home() {
     data_envio:'', responsavel:'', cpf_cnpj:'', data_evento:'', email:'',
   })
 
-  const openNew = () => { setForm(blank()); setParcelas([]); setEditing(null); setModal(true) }
+  const openNew = () => {
+    if (isDemo) { showToast('Modo demonstração — edições desabilitadas', false); return }
+    setForm(blank()); setParcelas([]); setEditing(null); setModal(true)
+  }
 
   const openEdit = async (id:number) => {
+    if (isDemo) {
+      const r = data.find(d => d.id === id)
+      if (r) { setForm({...r, atualizado_por:user}); setParcelas(r.parcelas||[]); setEditing(r); setModal(true) }
+      return
+    }
     try {
       const d = await api.buscar(id)
-      setForm({...d, atualizado_por:user})
-      setParcelas(d.parcelas||[])
-      setEditing(d)
-      setModal(true)
+      setForm({...d, atualizado_por:user}); setParcelas(d.parcelas||[]); setEditing(d); setModal(true)
     }
     catch { showToast('Erro ao carregar',false) }
   }
 
   const handleSave = async () => {
+    if (isDemo) { setModal(false); showToast('Modo demonstração — alterações não salvas', false); return }
     setSaving(true)
     try {
-      const payload = {
-        ...form,
-        atualizado_por: user,
-        danos: toNum(form.danos),
-        saldo: toNum(form.saldo),
-        parcelas: parcelas.map((p:any) => ({ ...p, valor: toNum(p.valor) }))
-      }
+      const payload = { ...form, atualizado_por:user, danos:toNum(form.danos), saldo:toNum(form.saldo), parcelas:parcelas.map((p:any)=>({...p,valor:toNum(p.valor)})) }
       if (editing) await api.atualizar(editing.id, payload)
       else await api.criar(payload)
-      setModal(false)
-      showToast(editing?'Atualizada!':'Criada!')
-      load()
-    } catch(e:any) {
-      showToast('Erro ao salvar: ' + (e?.message||''), false)
-    } finally { setSaving(false) }
+      setModal(false); showToast(editing?'Atualizada!':'Criada!'); load()
+    } catch(e:any) { showToast('Erro ao salvar: '+(e?.message||''),false) }
+    finally { setSaving(false) }
   }
 
   const handleDelete = async () => {
@@ -422,10 +421,7 @@ export default function Home() {
     const nomeLower = file.name.toLowerCase()
     let mesDetectado = ''
     mesesNomes.forEach((m, i) => {
-      if (nomeLower.includes(m)) {
-        const anoMatch = file.name.match(/\d{4}/)
-        if (anoMatch) mesDetectado = `${String(i+1).padStart(2,'0')}/${anoMatch[0]}`
-      }
+      if (nomeLower.includes(m)) { const anoMatch = file.name.match(/\d{4}/); if (anoMatch) mesDetectado = `${String(i+1).padStart(2,'0')}/${anoMatch[0]}` }
     })
     if (mesDetectado) setUploadMes(mesDetectado)
     const reader = new FileReader()
@@ -439,18 +435,8 @@ export default function Home() {
       const dataRows = hasHeader ? raw.slice(1) : raw
       const headers = hasHeader ? firstRow : null
       const mapped = dataRows.filter((r: any[]) => r.some(v => v !== '')).map((row: any[]) => {
-        if (headers) {
-          const obj: any = {}
-          headers.forEach((h: string, i: number) => { obj[h] = row[i] })
-          return obj
-        }
-        return {
-          _pos: true,
-          cliente: row[1], devedor: row[3], terceiro: row[3],
-          telefone: row[4], email: row[5], contato: row[4],
-          cpf_cnpj: row[2], danos: row[11], saldo: row[12],
-          data_sinistro: row[14], andamento: row[16],
-        }
+        if (headers) { const obj: any = {}; headers.forEach((h: string, i: number) => { obj[h] = row[i] }); return obj }
+        return { _pos:true, cliente:row[1], devedor:row[3], terceiro:row[3], telefone:row[4], email:row[5], contato:row[4], cpf_cnpj:row[2], danos:row[11], saldo:row[12], data_sinistro:row[14], andamento:row[16] }
       })
       setUploadRows(mapped)
     }
@@ -471,39 +457,33 @@ export default function Home() {
           if (dtRaw instanceof Date) data_sinistro = dtRaw.toLocaleDateString('pt-BR')
           else if (dtRaw) data_sinistro = str(dtRaw)
         }
-        const payload: any = {
-          tipo: uploadTipo, atualizado_por: user, parcelas: [],
-          placa: str(isPosMap ? '' : (row['placa'] ?? row['Placa'] ?? row['nº processo'] ?? '')),
-          cliente: str(isPosMap ? row.cliente : (row['cliente'] ?? row['Cliente'] ?? '')),
-          terceiro: str(isPosMap ? row.terceiro : (row['terceiro'] ?? row['Pólo da Demanda'] ?? '')),
-          contato: str(isPosMap ? row.contato : (row['contato'] ?? row['Juízo'] ?? '')),
-          empresa: str(isPosMap ? '' : (row['empresa'] ?? row['Comarca/UF'] ?? '')),
-          email: str(isPosMap ? row.email : (row['email'] ?? row['Email'] ?? '')),
-          cpf_cnpj: str(isPosMap ? row.cpf_cnpj : (row['cpf_cnpj'] ?? row['CPF/CNPJ'] ?? '')),
+        await api.criar({
+          tipo:uploadTipo, atualizado_por:user, parcelas:[],
+          placa:str(isPosMap?'':(row['placa']??row['Placa']??row['nº processo']??'')),
+          cliente:str(isPosMap?row.cliente:(row['cliente']??row['Cliente']??'')),
+          terceiro:str(isPosMap?row.terceiro:(row['terceiro']??row['Pólo da Demanda']??'')),
+          contato:str(isPosMap?row.contato:(row['contato']??row['Juízo']??'')),
+          empresa:str(isPosMap?'':(row['empresa']??row['Comarca/UF']??'')),
+          email:str(isPosMap?row.email:(row['email']??row['Email']??'')),
+          cpf_cnpj:str(isPosMap?row.cpf_cnpj:(row['cpf_cnpj']??row['CPF/CNPJ']??'')),
           data_sinistro,
-          danos: toNum(isPosMap ? row.danos : (row['danos'] ?? row['Valor da causa'] ?? row['Vl. Título'] ?? 0)),
-          saldo: toNum(isPosMap ? row.saldo : (row['saldo'] ?? row['Valor passivo de condenação'] ?? row['Saldo'] ?? 0)),
-          devedor: str(isPosMap ? row.devedor : (row['devedor'] ?? row['Parte Adversa'] ?? row['Devedor'] ?? '')),
-          telefone: str(isPosMap ? row.telefone : (row['telefone'] ?? row['Telefone'] ?? '')),
-          status: str(isPosMap ? 'Em andamento' : (row['status'] ?? row['Status'] ?? 'Em andamento')),
-          fato_gerador: str(isPosMap ? 'Cível' : (row['fato_gerador'] ?? row['Natureza'] ?? row['Fato Gerador'] ?? 'Cível')),
-          andamento: str(isPosMap ? row.andamento : (row['andamento'] ?? row['Andamentos'] ?? row['Observação'] ?? '')),
-          responsavel: str(isPosMap ? '' : (row['responsavel'] ?? row['Responsável'] ?? '')),
-          data_envio: '', data_evento: '',
-          limite: 0, data_vencimento: '', valor_pago: 0, data_pagamento: '', pago: false,
-        }
-        await api.criar(payload)
+          danos:toNum(isPosMap?row.danos:(row['danos']??row['Valor da causa']??row['Vl. Título']??0)),
+          saldo:toNum(isPosMap?row.saldo:(row['saldo']??row['Valor passivo de condenação']??row['Saldo']??0)),
+          devedor:str(isPosMap?row.devedor:(row['devedor']??row['Parte Adversa']??row['Devedor']??'')),
+          telefone:str(isPosMap?row.telefone:(row['telefone']??row['Telefone']??'')),
+          status:str(isPosMap?'Em andamento':(row['status']??row['Status']??'Em andamento')),
+          fato_gerador:str(isPosMap?'Cível':(row['fato_gerador']??row['Natureza']??row['Fato Gerador']??'Cível')),
+          andamento:str(isPosMap?row.andamento:(row['andamento']??row['Andamentos']??row['Observação']??'')),
+          responsavel:str(isPosMap?'':(row['responsavel']??row['Responsável']??'')),
+          data_envio:'', data_evento:'', limite:0, data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
+        } as any)
         ok++
       } catch { err++ }
     }
-    setUploading(false)
-    setUploadModal(false)
-    setUploadRows([])
-    setUploadFileName('')
-    setUploadMes('')
+    setUploading(false); setUploadModal(false); setUploadRows([]); setUploadFileName(''); setUploadMes('')
     if (fileRef.current) fileRef.current.value = ''
-    showToast(`${ok} importadas${err > 0 ? `, ${err} erros` : ''}!`, err === 0)
-    if (uploadTipo === tipo) load()
+    showToast(`${ok} importadas${err>0?`, ${err} erros`:''}!`, err===0)
+    if (uploadTipo===tipo) load()
   }
 
   const set = (k:string,v:any) => setForm((p:any)=>({...p,[k]:v}))
@@ -520,15 +500,8 @@ export default function Home() {
   const mesAtual = `${String(hoje.getMonth()+1).padStart(2,'0')}/${hoje.getFullYear()}`
   const tot=data.length
   const totVal=data.reduce((s,r)=>s+(r.danos||0),0)
-  const totalPagoMes=data.reduce((s,r)=>{
-    const somaParcMes=(r.parcelas||[]).filter(p=>p.pago&&p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0)
-    const pagoDireto=r.pago&&r.data_pagamento?.slice(3)===mesAtual?(r.valor_pago||0):0
-    return s+somaParcMes+pagoDireto
-  },0)
-  const totalPago=data.reduce((s,r)=>{
-    const somaParcelas=(r.parcelas||[]).filter(p=>p.pago).reduce((a,p)=>a+(p.valor||0),0)
-    return s+(r.pago?(r.valor_pago||0):0)+somaParcelas
-  },0)
+  const totalPagoMes=data.reduce((s,r)=>{ const somaParcMes=(r.parcelas||[]).filter(p=>p.pago&&p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0); const pagoDireto=r.pago&&r.data_pagamento?.slice(3)===mesAtual?(r.valor_pago||0):0; return s+somaParcMes+pagoDireto },0)
+  const totalPago=data.reduce((s,r)=>{ const somaParcelas=(r.parcelas||[]).filter(p=>p.pago).reduce((a,p)=>a+(p.valor||0),0); return s+(r.pago?(r.valor_pago||0):0)+somaParcelas },0)
   const ea=data.filter(r=>r.status==='Em andamento'||r.status==='Em tratativa').length
   const acFin=data.filter(r=>r.status==='Acordo fechado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
   const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
@@ -546,16 +519,14 @@ export default function Home() {
     if (tipo==='letspf') return "Pessoas físicas · Carteira de cobrança Let's PF"
     if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
     if (tipo==='cobr') return 'Cobrança V1 · Terceiros'
-    if (tipo==='autocarga') return `Processos judiciais · Auto Carga${fMes ? ' · ' + mesLabel(fMes) : ''}`
+    if (tipo==='autocarga') return `Processos judiciais · Auto Carga${fMes?' · '+mesLabel(fMes):''}`
     return 'Avarias V1 · Sinistros por terceiros'
   }
 
   const exportCSV = () => {
-    const keys = isAuto
-      ? ['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','data_sinistro','andamento','atualizado_por']
-      : ['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','cpf_cnpj','email','responsavel','data_evento','data_envio']
+    const keys = isAuto ? ['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','data_sinistro','andamento'] : ['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`${tipo}_${fMes||'todos'}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
 
   const showPlaca = tipo==='lets' || tipo==='avarias'
@@ -563,12 +534,8 @@ export default function Home() {
 
   const melhorAtraso = (r: Demanda) => {
     const parc = r.parcelas || []
-    if (parc.length > 0) {
-      const atrasadas = parc.filter(p => !p.pago && (p.dias_atraso||0) > 0)
-      if (atrasadas.length > 0) return { dias: Math.max(...atrasadas.map(p=>p.dias_atraso||0)), parcelas: atrasadas.length }
-      return null
-    }
-    if (!r.pago && r.dias_atraso && r.dias_atraso > 0) return { dias: r.dias_atraso, parcelas: 0 }
+    if (parc.length > 0) { const atrasadas=parc.filter(p=>!p.pago&&(p.dias_atraso||0)>0); if(atrasadas.length>0) return {dias:Math.max(...atrasadas.map(p=>p.dias_atraso||0)),parcelas:atrasadas.length}; return null }
+    if (!r.pago&&r.dias_atraso&&r.dias_atraso>0) return {dias:r.dias_atraso,parcelas:0}
     return null
   }
 
@@ -595,15 +562,10 @@ export default function Home() {
           ))}
         </nav>
         <div style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'#7A919E'}}>
-          <div style={{width:8,height:8,borderRadius:'50%',background:conn===true?'#27AE60':conn===false?'#E74C3C':'#ccc'}}/>
-          <span>{conn===true?'conectado':conn===false?'erro':'conectando...'}</span>
-          <span style={{margin:'0 4px'}}>|</span>
+          {isDemo && <span style={{background:'#F4EEF9',color:'#8E44AD',borderRadius:6,padding:'2px 10px',fontSize:11,fontWeight:700}}>DEMONSTRAÇÃO</span>}
+          {!isDemo && <><div style={{width:8,height:8,borderRadius:'50%',background:conn===true?'#27AE60':conn===false?'#E74C3C':'#ccc'}}/><span>{conn===true?'conectado':conn===false?'erro':'conectando...'}</span><span style={{margin:'0 4px'}}>|</span></>}
           <span>👤 {user}</span>
-          {user==='Claudiane' && (
-            <button onClick={()=>setPermModal(true)} style={{...s.btnOut,padding:'3px 10px',fontSize:11,color:'#8E44AD',borderColor:'#F4EEF9'}}>
-              🔑 Permissões
-            </button>
-          )}
+          {user==='Claudiane' && <button onClick={()=>setPermModal(true)} style={{...s.btnOut,padding:'3px 10px',fontSize:11,color:'#8E44AD',borderColor:'#F4EEF9'}}>🔑 Permissões</button>}
           <button onClick={()=>setLogado(false)} style={{...s.btnOut,padding:'3px 10px',fontSize:11,color:'#E74C3C',borderColor:'#FDECEA'}}>Sair</button>
         </div>
       </header>
@@ -614,17 +576,13 @@ export default function Home() {
             <h1 style={s.h1}>{tabLabel} — Demandas em Andamento</h1>
             <p style={s.p}>{subTitle()}</p>
           </div>
-          <div style={{display:'flex',gap:8}}>
-            <button onClick={()=>setUploadModal(true)} style={{...s.btnOut,gap:6}}><Upload size={15}/> Importar Excel</button>
-            <button onClick={openNew} style={s.btnTeal}><Plus size={16}/> Nova demanda</button>
-          </div>
+          {!isDemo && (
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>setUploadModal(true)} style={{...s.btnOut,gap:6}}><Upload size={15}/> Importar Excel</button>
+              <button onClick={openNew} style={s.btnTeal}><Plus size={16}/> Nova demanda</button>
+            </div>
+          )}
         </div>
-
-        {user==='Bruno' && podeExcluir && tempDelete && (
-          <div style={{background:'#FEF5EB',border:'1px solid #F0A500',borderRadius:10,padding:'10px 16px',marginBottom:16,fontSize:12,color:'#7A5200',display:'flex',alignItems:'center',gap:8}}>
-            ⏳ Você tem permissão temporária de exclusão por mais <strong>{tempoRestante(tempDelete.expira)}</strong>
-          </div>
-        )}
 
         <div style={s.feat}>
           <div style={{position:'absolute',right:-40,top:-40,width:192,height:192,borderRadius:'50%',background:'rgba(255,255,255,.1)'}}/>
@@ -635,17 +593,12 @@ export default function Home() {
             <p style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:4}}>encerrados ou em execução</p>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,flex:1}}>
-            {(isAuto ? [
-              {l:'Acordo fechado',v:acFin,sv:'quitado'},
-              {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
-              {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
-              {l:'Arquivados',v:arq,sv:'encerrados'}
-            ] : [
+            {[
               {l:'Acordo fechado',v:acFin,sv:'quitado'},
               {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
               {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
               {l:'Pré-processuais',v:preProc,sv:'em curso'}
-            ]).map(({l,v,sv})=>(
+            ].map(({l,v,sv})=>(
               <div key={l} style={{background:'rgba(255,255,255,.15)',borderRadius:8,padding:'.65rem .9rem'}}>
                 <p style={{fontSize:10,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>{l}</p>
                 <p style={{fontSize:18,fontWeight:700,color:'#fff'}}>{v}</p>
@@ -656,9 +609,9 @@ export default function Home() {
         </div>
 
         <div style={s.g4}>
-          <KPI l="Total de processos" v={tot} sv={isAuto?`${tot} registros`:tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
-          <KPI l={isAuto?"Valor da causa total":"Valores a Receber"} v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
-          <KPI l="Em andamento" v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
+          <KPI l="Total de demandas" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
+          <KPI l="Valores a Receber" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
+          <KPI l={tipo==='lets'||tipo==='letspf'?'Em andamento':'Em tratativa'} v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
         <div style={s.g6}>
@@ -677,12 +630,10 @@ export default function Home() {
               <Search size={14} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#7A919E'}}/>
               <input style={{...s.inp,paddingLeft:30,width:176}} placeholder="Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
             </div>
-            {isAuto && mesesDisponiveis.length > 0 && (
+            {isAuto && mesesDisponiveis.length>0 && (
               <select style={{...s.inp,fontWeight:600}} value={fMes} onChange={e=>setFMes(e.target.value)}>
                 <option value="">Todos os meses</option>
-                {mesesDisponiveis.map(m=>(
-                  <option key={m} value={m}>{mesLabel(m)}</option>
-                ))}
+                {mesesDisponiveis.map(m=><option key={m} value={m}>{mesLabel(m)}</option>)}
               </select>
             )}
             {tipo==='lets'&&<select style={s.inp} value={fEmp} onChange={e=>setFEmp(e.target.value)}><option value="">Todas empresas</option><option>LETS</option><option>SALUTE</option><option>EBEC</option></select>}
@@ -696,9 +647,8 @@ export default function Home() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
-                  {isAuto ? <>
-                    {th('Mês')}{th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Juízo')}{th('Comarca/UF')}{th('Natureza')}{th('Valor da Causa')}{th('Valor Passivo')}{th('Status')}{th('Por')}{th('Andamento')}
-                  </> : <>
+                  {isAuto?<>{th('Mês')}{th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Juízo')}{th('Comarca/UF')}{th('Natureza')}{th('Valor da Causa')}{th('Valor Passivo')}{th('Status')}{th('Por')}{th('Andamento')}</>
+                  :<>
                     {showPlaca&&th('Placa V1')}
                     {th(tipo==='lets'?'Cliente':'Devedor')}
                     {th('CPF/CNPJ')}
@@ -718,11 +668,11 @@ export default function Home() {
                 :filtered.map(r=>{
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
-                  const atraso = melhorAtraso(r)
-                  const parc = r.parcelas || []
-                  const pagas = parc.filter(p=>p.pago).length
+                  const atraso=melhorAtraso(r)
+                  const parc=r.parcelas||[]
+                  const pagas=parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
-                    {isAuto ? <>
+                    {isAuto?<>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#0097A8',fontWeight:600,whiteSpace:'nowrap'}}>{mesLabel(r.data_sinistro||'')||'—'}</td>
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E',whiteSpace:'nowrap'}}>{r.placa||'—'}</td>
                       <td style={{padding:'7px 11px',maxWidth:160,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontWeight:500}}>{r.devedor||'—'}</td>
@@ -735,7 +685,7 @@ export default function Home() {
                       <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
                       <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
                       <td style={{padding:'7px 11px',maxWidth:250,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
-                    </> : <>
+                    </>:<>
                       {showPlaca&&<td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E'}}>{r.placa||'—'}</td>}
                       <td style={{padding:'7px 11px',maxWidth:140,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{tipo==='lets'?(r.cliente||'—'):(r.devedor||r.terceiro||'—')}</td>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.cpf_cnpj||'—'}</td>
@@ -749,10 +699,10 @@ export default function Home() {
                       {(tipo==='cobr'||tipo==='avarias')&&<td style={{padding:'7px 11px',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}}>{r.fato_gerador||'—'}</td>}
                       <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(tipo==='lets'||tipo==='letspf'?r.danos:r.saldo)}</td>
                       <td style={{padding:'7px 11px',textAlign:'center',fontSize:11}}>
-                        {parc.length > 0 ? <span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span> : <span style={{color:'#7A919E'}}>—</span>}
+                        {parc.length>0?<span style={{background:'#E0F5F7',color:'#0097A8',borderRadius:6,padding:'2px 7px',fontWeight:600}}>{pagas}/{parc.length}</span>:<span style={{color:'#7A919E'}}>—</span>}
                       </td>
                       <td style={{padding:'7px 11px'}}>
-                        {atraso ? <span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>{atraso.parcelas > 0 ? `${atraso.parcelas}p · ` : ''}{atraso.dias}d</span> : <span style={{color:'#7A919E',fontSize:11}}>—</span>}
+                        {atraso?<span style={{background:'#FDECEA',color:'#E74C3C',borderRadius:6,padding:'2px 7px',fontSize:11,fontWeight:600}}>{atraso.parcelas>0?`${atraso.parcelas}p · `:''}{atraso.dias}d</span>:<span style={{color:'#7A919E',fontSize:11}}>—</span>}
                       </td>
                       <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
                       <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
@@ -778,7 +728,6 @@ export default function Home() {
         <p style={{fontSize:11,color:'#7A919E'}}>© 2025</p>
       </footer>
 
-      {/* Modal Permissões — só Claudiane */}
       {permModal&&(
         <div style={{...s.overlay,alignItems:'center',paddingTop:0}}>
           <div style={{background:'#fff',borderRadius:14,width:400,padding:'1.5rem',boxShadow:'0 20px 60px rgba(0,0,0,.2)'}}>
@@ -797,10 +746,7 @@ export default function Home() {
             ) : (
               <div style={{display:'flex',flexDirection:'column',gap:12}}>
                 <p style={{fontSize:13,color:'#7A919E',margin:0}}>Conceder permissão de exclusão por 24 horas:</p>
-                <button onClick={()=>concederPermissao('Bruno')}
-                  style={{...s.btnTeal,justifyContent:'center',background:'#8E44AD'}}>
-                  🔑 Conceder a Bruno por 24h
-                </button>
+                <button onClick={()=>concederPermissao('Bruno')} style={{...s.btnTeal,justifyContent:'center',background:'#8E44AD'}}>🔑 Conceder a Bruno por 24h</button>
               </div>
             )}
           </div>
@@ -815,28 +761,21 @@ export default function Home() {
               <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('');setUploadMes('')}} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
             <div style={{display:'flex',flexDirection:'column',gap:14}}>
-              <div>
-                <label style={s.lb}>Aba de destino</label>
+              <div><label style={s.lb}>Aba de destino</label>
                 <select style={s.fi} value={uploadTipo} onChange={e=>setUploadTipo(e.target.value as Tipo)}>
                   {tabs.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
               </div>
-              {uploadTipo === 'autocarga' && (
-                <div>
-                  <label style={s.lb}>Mês de referência</label>
+              {uploadTipo==='autocarga'&&(
+                <div><label style={s.lb}>Mês de referência</label>
                   <input style={s.fi} value={uploadMes} placeholder="mm/aaaa (ex: 04/2026)" onChange={e=>setUploadMes(e.target.value)}/>
-                  {uploadMes && <p style={{fontSize:11,color:'#0097A8',marginTop:4,fontWeight:600}}>📅 {mesLabel(uploadMes)}</p>}
+                  {uploadMes&&<p style={{fontSize:11,color:'#0097A8',marginTop:4,fontWeight:600}}>📅 {mesLabel(uploadMes)}</p>}
                 </div>
               )}
-              <div>
-                <label style={s.lb}>Arquivo Excel (.xlsx)</label>
-                <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{...s.fi, padding:'6px 10px', cursor:'pointer'}}/>
+              <div><label style={s.lb}>Arquivo Excel (.xlsx)</label>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} style={{...s.fi,padding:'6px 10px',cursor:'pointer'}}/>
               </div>
-              {uploadRows.length > 0 && (
-                <div style={{background:'#EAF7EE',borderRadius:8,padding:'10px 14px',fontSize:13,color:'#27AE60',fontWeight:600}}>
-                  ✅ {uploadRows.length} linhas detectadas em "{uploadFileName}"
-                </div>
-              )}
+              {uploadRows.length>0&&<div style={{background:'#EAF7EE',borderRadius:8,padding:'10px 14px',fontSize:13,color:'#27AE60',fontWeight:600}}>✅ {uploadRows.length} linhas detectadas em "{uploadFileName}"</div>}
             </div>
             <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginTop:20}}>
               <button onClick={()=>{setUploadModal(false);setUploadRows([]);setUploadFileName('');setUploadMes('')}} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Cancelar</button>
@@ -853,7 +792,7 @@ export default function Home() {
         <div style={s.overlay} onClick={e=>e.target===e.currentTarget&&setModal(false)}>
           <div style={s.modal}>
             <div style={s.mhdr}>
-              <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}</h3>
+              <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}{isDemo?' (demonstração)':''}</h3>
               <button onClick={()=>setModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
             {isAuto?(
@@ -880,8 +819,8 @@ export default function Home() {
                 <FormField lb="Telefone"><input style={s.fi} value={form.telefone||''} onChange={e=>set('telefone',e.target.value)}/></FormField>
                 <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
                 <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
-                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
-                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento',maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio',maskDate(e.target.value))}/></FormField>
                 <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_LETS.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
@@ -895,8 +834,8 @@ export default function Home() {
                 <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
                 <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
                 <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
-                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
-                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento',maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio',maskDate(e.target.value))}/></FormField>
                 <FormField lb="Placa V1"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
@@ -912,8 +851,8 @@ export default function Home() {
                 <FormField lb="CPF/CNPJ"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
                 <FormField lb="Email"><input style={s.fi} value={form.email||''} onChange={e=>set('email',e.target.value)}/></FormField>
                 <FormField lb="Responsável"><input style={s.fi} value={form.responsavel||''} onChange={e=>set('responsavel',e.target.value)}/></FormField>
-                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento', maskDate(e.target.value))}/></FormField>
-                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio', maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data do Evento"><input style={s.fi} value={form.data_evento||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_evento',maskDate(e.target.value))}/></FormField>
+                <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio',maskDate(e.target.value))}/></FormField>
                 <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
@@ -922,8 +861,8 @@ export default function Home() {
               </div>
             )}
             <div style={s.mfoot}>
-              <button onClick={()=>setModal(false)} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Cancelar</button>
-              <button onClick={handleSave} disabled={saving} style={{...s.btnTeal,opacity:saving?0.6:1}}>{saving?'Salvando...':'Salvar'}</button>
+              <button onClick={()=>setModal(false)} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Fechar</button>
+              {!isDemo && <button onClick={handleSave} disabled={saving} style={{...s.btnTeal,opacity:saving?0.6:1}}>{saving?'Salvando...':'Salvar'}</button>}
             </div>
           </div>
         </div>
