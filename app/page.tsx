@@ -289,12 +289,7 @@ export default function Home() {
   const revogarPermissao = () => { revokeTempDelete(); setTempDeleteState(null); showToast('Permissão revogada!') }
 
   const load = useCallback(async (silent = false) => {
-    if (isDemo) {
-      setData(DEMO_DATA[tipo] || [])
-      setConn(true)
-      setLoading(false)
-      return
-    }
+    if (isDemo) { setData(DEMO_DATA[tipo] || []); setConn(true); setLoading(false); return }
     if (!silent) setLoading(true)
     try { const d = await api.listar(tipo); setData(d); setConn(true) }
     catch { setConn(false); if (!silent) showToast('Erro ao carregar',false) }
@@ -596,8 +591,19 @@ export default function Home() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
-                  {isAuto?<>{th('Mês')}{th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Juízo')}{th('Comarca/UF')}{th('Natureza')}{th('Valor da Causa')}{th('Valor Passivo')}{th('Status')}{th('Por')}{th('Andamento')}</>
-                  :<>
+                  {isAuto?<>
+                    {th('Nº Processo')}
+                    {th('Parte Adversa')}
+                    {th('Pólo')}
+                    {th('Juízo')}
+                    {th('Comarca/UF')}
+                    {th('Natureza')}
+                    {th('Valor da Causa')}
+                    {th('Valor Passivo')}
+                    {th('Status')}
+                    {th('Por')}
+                    {th('Andamento')}
+                  </>:<>
                     {showPlaca&&th('Placa V1')}
                     {th(tipo==='lets'?'Cliente':'Devedor')}
                     {th('CPF/CNPJ')}
@@ -624,7 +630,6 @@ export default function Home() {
                   const pagas=parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
                     {isAuto?<>
-                      <td style={{padding:'7px 11px',fontSize:11,color:'#0097A8',fontWeight:600,whiteSpace:'nowrap'}}>{mesLabel(r.data_sinistro||'')||'—'}</td>
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E',whiteSpace:'nowrap'}}>{r.placa||'—'}</td>
                       <td style={{padding:'7px 11px',maxWidth:160,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontWeight:500}}>{r.devedor||'—'}</td>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
