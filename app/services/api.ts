@@ -1,4 +1,12 @@
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const SUPA_URL = 'https://ndecnsjddwflhhhsquoq.supabase.co'
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kZWNuc2pkZHdmbGhoaHNxdW9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMzQ5ODEsImV4cCI6MjA5MTkxMDk4MX0.p6aQWKNBPSOpV9JjawkE4ZwPqWwsHaEvp4u-yWegasI'
+
+const H = {
+  'apikey': SUPA_KEY,
+  'Authorization': `Bearer ${SUPA_KEY}`,
+  'Content-Type': 'application/json',
+  'Prefer': 'return=representation',
+}
 
 export interface Parcela {
   numero: number
@@ -33,8 +41,8 @@ export interface Demanda {
   valor_pago?: number
   data_pagamento?: string
   pago?: boolean
-  dias_atraso?: number
   parcelas?: Parcela[]
+  dias_atraso?: number
   data_envio?: string
   responsavel?: string
   cpf_cnpj?: string
@@ -42,49 +50,113 @@ export interface Demanda {
   email?: string
 }
 
-export type DemandaInput = Omit<Demanda, 'id' | 'criado_em' | 'atualizado_em' | 'dias_atraso'>
+export function fmtR(v: number): string {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
 
-export const api = {
-  async listar(tipo: string): Promise<Demanda[]> {
-    const res = await fetch(`${API}/api/demandas?tipo=${tipo}`, { cache: 'no-store' })
-    if (!res.ok) throw new Error('Erro ao carregar')
-    return res.json()
-  },
-  async buscar(id: number): Promise<Demanda> {
-    const res = await fetch(`${API}/api/demandas/${id}`)
-    if (!res.ok) throw new Error('Não encontrado')
-    return res.json()
-  },
-  async criar(data: DemandaInput): Promise<Demanda> {
-    const res = await fetch(`${API}/api/demandas`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({...data, parcelas: JSON.stringify(data.parcelas || [])})
+export function fmtN(v?: number): string {
+  if (!v) return '—'
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function calcDiasAtraso(dataVencimento?: string, pago?: boolean): number {
+  if (pago || !dataVencimento) return 0
+  try {
+    const [d, m, y] = dataVencimento.split('/')
+    const venc = new Date(+y, +m - 1, +d)
+    const hoje = new Date()
+    return Math.max(0, Math.floor((hoje.getTime() - venc.getTime()) / 86400000))
+  } catch { return 0 }
+}
+
+function parseParcelas(raw: any): Parcela[] {
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : (raw || [])
+    const hoje = new Date()
+    return arr.map((p: any) => {
+      let dias_atraso = 0
+      if (!p.pago && p.vencimento) {
+        try {
+          const [d, m, y] = p.vencimento.split('/')
+          const venc = new Date(+y, +m - 1, +d)
+          dias_atraso = Math.max(0, Math.floor((hoje.getTime() - venc.getTime()) / 86400000))
+        } catch { dias_atraso = 0 }
+      }
+      return { ...p, dias_atraso }
     })
-    if (!res.ok) throw new Error('Erro ao criar')
-    return res.json()
-  },
-  async atualizar(id: number, data: DemandaInput): Promise<Demanda> {
-    const res = await fetch(`${API}/api/demandas/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({...data, parcelas: JSON.stringify(data.parcelas || [])})
-    })
-    if (!res.ok) throw new Error('Erro ao atualizar')
-    return res.json()
-  },
-  async deletar(id: number): Promise<void> {
-    const res = await fetch(`${API}/api/demandas/${id}`, { method: 'DELETE' })
-    if (!res.ok) throw new Error('Erro ao deletar')
+  } catch { return [] }
+}
+
+function processRow(r: any): Demanda {
+  return {
+    ...r,
+    parcelas: parseParcelas(r.parcelas),
+    dias_atraso: calcDiasAtraso(r.data_vencimento, r.pago),
   }
 }
 
-export const fmtR = (v?: number) => {
-  if (!v || v <= 0) return '—'
-  if (v >= 1e6) return `R$ ${(v / 1e6).toFixed(2).replace('.', ',')}M`
-  if (v >= 1000) return `R$ ${(v / 1000).toFixed(1).replace('.', ',')}k`
-  return `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-}
+export const api = {
+  async listar(tipo: string): Promise<Demanda[]> {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/demandas?tipo=eq.${tipo}&order=atualizado_em.desc`,
+      { headers: H }
+    )
+    if (!res.ok) throw new Error(await res.text())
+    const data = await res.json()
+    return data.map(processRow)
+  },
 
-export const fmtN = (v?: number) =>
-  v && v > 0 ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'
+  async buscar(id: number): Promise<Demanda> {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/demandas?id=eq.${id}`,
+      { headers: H }
+    )
+    if (!res.ok) throw new Error(await res.text())
+    const data = await res.json()
+    return processRow(data[0])
+  },
+
+  async criar(payload: Partial<Demanda>): Promise<Demanda> {
+    const body = {
+      ...payload,
+      parcelas: JSON.stringify(payload.parcelas || []),
+    }
+    delete (body as any).id
+    delete (body as any).dias_atraso
+    delete (body as any).criado_em
+    delete (body as any).atualizado_em
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/demandas`,
+      { method: 'POST', headers: H, body: JSON.stringify(body) }
+    )
+    if (!res.ok) throw new Error(await res.text())
+    const data = await res.json()
+    return processRow(data[0])
+  },
+
+  async atualizar(id: number, payload: Partial<Demanda>): Promise<Demanda> {
+    const body = {
+      ...payload,
+      parcelas: JSON.stringify(payload.parcelas || []),
+      atualizado_em: new Date().toISOString(),
+    }
+    delete (body as any).id
+    delete (body as any).dias_atraso
+    delete (body as any).criado_em
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/demandas?id=eq.${id}`,
+      { method: 'PATCH', headers: H, body: JSON.stringify(body) }
+    )
+    if (!res.ok) throw new Error(await res.text())
+    const data = await res.json()
+    return processRow(data[0])
+  },
+
+  async deletar(id: number): Promise<void> {
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/demandas?id=eq.${id}`,
+      { method: 'DELETE', headers: { ...H, 'Prefer': 'return=minimal' } }
+    )
+    if (!res.ok) throw new Error(await res.text())
+  },
+}
