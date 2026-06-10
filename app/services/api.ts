@@ -50,6 +50,8 @@ export interface Demanda {
   email?: string
 }
 
+export type DemandaInput = Partial<Demanda>
+
 export function fmtR(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
@@ -117,14 +119,14 @@ export const api = {
   },
 
   async criar(payload: Partial<Demanda>): Promise<Demanda> {
-    const body = {
+    const body: any = {
       ...payload,
       parcelas: JSON.stringify(payload.parcelas || []),
     }
-    delete (body as any).id
-    delete (body as any).dias_atraso
-    delete (body as any).criado_em
-    delete (body as any).atualizado_em
+    delete body.id
+    delete body.dias_atraso
+    delete body.criado_em
+    delete body.atualizado_em
     const res = await fetch(
       `${SUPA_URL}/rest/v1/demandas`,
       { method: 'POST', headers: H, body: JSON.stringify(body) }
@@ -135,14 +137,14 @@ export const api = {
   },
 
   async atualizar(id: number, payload: Partial<Demanda>): Promise<Demanda> {
-    const body = {
+    const body: any = {
       ...payload,
       parcelas: JSON.stringify(payload.parcelas || []),
       atualizado_em: new Date().toISOString(),
     }
-    delete (body as any).id
-    delete (body as any).dias_atraso
-    delete (body as any).criado_em
+    delete body.id
+    delete body.dias_atraso
+    delete body.criado_em
     const res = await fetch(
       `${SUPA_URL}/rest/v1/demandas?id=eq.${id}`,
       { method: 'PATCH', headers: H, body: JSON.stringify(body) }
