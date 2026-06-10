@@ -53,12 +53,18 @@ export interface Demanda {
 export type DemandaInput = Partial<Demanda>
 
 export function fmtR(v: number): string {
+  if (!v || isNaN(v)) return 'R$ 0,00'
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
 export function fmtN(v?: number): string {
-  if (!v) return '—'
+  if (!v || isNaN(v)) return '—'
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function toFloat(v: any): number {
+  const n = parseFloat(String(v ?? '0').replace(',', '.'))
+  return isNaN(n) ? 0 : n
 }
 
 function calcDiasAtraso(dataVencimento?: string, pago?: boolean): number {
@@ -84,7 +90,7 @@ function parseParcelas(raw: any): Parcela[] {
           dias_atraso = Math.max(0, Math.floor((hoje.getTime() - venc.getTime()) / 86400000))
         } catch { dias_atraso = 0 }
       }
-      return { ...p, dias_atraso }
+      return { ...p, valor: toFloat(p.valor), dias_atraso }
     })
   } catch { return [] }
 }
@@ -92,6 +98,11 @@ function parseParcelas(raw: any): Parcela[] {
 function processRow(r: any): Demanda {
   return {
     ...r,
+    danos: toFloat(r.danos),
+    saldo: toFloat(r.saldo),
+    limite: toFloat(r.limite),
+    valor_pago: toFloat(r.valor_pago),
+    pago: r.pago === true || r.pago === 'true',
     parcelas: parseParcelas(r.parcelas),
     dias_atraso: calcDiasAtraso(r.data_vencimento, r.pago),
   }
