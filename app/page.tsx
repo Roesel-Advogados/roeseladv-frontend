@@ -18,33 +18,33 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
 }
 
 const EMPRESA_LABEL: Record<Empresa, string> = {
-  roesel:     'Vix',
-  autocargas: 'Autocargas',
-  apafocoop:  'APACOOP/AFOCOOP',
-  demo:       'Roesel',
+  roesel:    'VIX',
+  autocargas:'AUTOCARGAS',
+  apafocoop: 'APACOOP/AFOCOOP',
+  demo:      'ROESEL',
 }
 
 const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
   roesel: [
-    { id: 'lets',    label: "Let's" },
-    { id: 'letspf',  label: "Let's PF" },
-    { id: 'vix',     label: 'Vix - 1' },
-    { id: 'cobr',    label: 'Vix - Cobrança' },
-    { id: 'avarias', label: 'Vix - Avarias' },
+    { id: 'lets',    label: "LET'S" },
+    { id: 'letspf',  label: "LET'S PF" },
+    { id: 'vix',     label: 'VIX - 1' },
+    { id: 'cobr',    label: 'VIX - COBRANÇA' },
+    { id: 'avarias', label: 'VIX - AVARIAS' },
   ],
   autocargas: [
-    { id: 'autocarga', label: 'Auto Carga' },
+    { id: 'autocarga', label: 'AUTO CARGA' },
   ],
   apafocoop: [
     { id: 'apacoop', label: 'APACOOP' },
     { id: 'afocoop', label: 'AFOCOOP' },
   ],
   demo: [
-    { id: 'lets',    label: 'Carteira Principal' },
-    { id: 'letspf',  label: 'Carteira PF' },
-    { id: 'vix',     label: 'Devedores' },
-    { id: 'cobr',    label: 'Cobrança' },
-    { id: 'avarias', label: 'Sinistros' },
+    { id: 'lets',    label: 'CARTEIRA PRINCIPAL' },
+    { id: 'letspf',  label: 'CARTEIRA PF' },
+    { id: 'vix',     label: 'DEVEDORES' },
+    { id: 'cobr',    label: 'COBRANÇA' },
+    { id: 'avarias', label: 'SINISTROS' },
   ],
 }
 
@@ -634,29 +634,9 @@ export default function Home() {
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
                   {isApa?<>
-                    {th('Nº Processo')}
-                    {th('Parte Adversa')}
-                    {th('Pólo')}
-                    {th('Comarca/UF')}
-                    {th('Natureza')}
-                    {th('Instância')}
-                    {th('Valor da Causa')}
-                    {th('Dt. Distribuição')}
-                    {th('Status')}
-                    {th('Por')}
-                    {th('Andamento')}
+                    {th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Comarca/UF')}{th('Natureza')}{th('Instância')}{th('Valor da Causa')}{th('Dt. Distribuição')}{th('Status')}{th('Por')}{th('Andamento')}
                   </>:isAuto?<>
-                    {th('Nº Processo')}
-                    {th('Parte Adversa')}
-                    {th('Pólo')}
-                    {th('Juízo')}
-                    {th('Comarca/UF')}
-                    {th('Natureza')}
-                    {th('Valor da Causa')}
-                    {th('Valor Passivo')}
-                    {th('Status')}
-                    {th('Por')}
-                    {th('Andamento')}
+                    {th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Juízo')}{th('Comarca/UF')}{th('Natureza')}{th('Valor da Causa')}{th('Valor Passivo')}{th('Status')}{th('Por')}{th('Andamento')}
                   </>:<>
                     {showPlaca&&th('Placa V1')}
                     {th(tipo==='lets'?'Cliente':'Devedor')}
