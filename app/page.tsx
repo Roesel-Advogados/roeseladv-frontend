@@ -4,34 +4,40 @@ import { Plus, Search, Trash2, Download, X, Upload } from 'lucide-react'
 import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 import * as XLSX from 'xlsx'
 
-type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias' | 'autocarga'
-type Empresa = 'roesel' | 'autocargas' | 'demo'
+type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias' | 'autocarga' | 'apacoop' | 'afocoop'
+type Empresa = 'roesel' | 'autocargas' | 'apafocoop' | 'demo'
 
 const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[] }> = {
-  'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas'] },
-  'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas'] },
+  'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas', 'apafocoop'] },
+  'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas', 'apafocoop'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
   'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
+  'danielle':  { senha: 'Danielle123', nome: 'Danielle',  empresas: ['apafocoop'] },
   'demo':      { senha: 'Demo123',     nome: 'Demo',      empresas: ['demo'] },
 }
 
 const EMPRESA_LABEL: Record<Empresa, string> = {
-  roesel: 'Vix',
+  roesel:     'Vix',
   autocargas: 'Autocargas',
-  demo: 'Roesel',
+  apafocoop:  'APACOOP/AFOCOOP',
+  demo:       'Roesel',
 }
 
 const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
   roesel: [
-    { id: 'lets',      label: "Let's" },
-    { id: 'letspf',    label: "Let's PF" },
-    { id: 'vix',       label: 'Vix - 1' },
-    { id: 'cobr',      label: 'Vix - Cobrança' },
-    { id: 'avarias',   label: 'Vix - Avarias' },
+    { id: 'lets',    label: "Let's" },
+    { id: 'letspf',  label: "Let's PF" },
+    { id: 'vix',     label: 'Vix - 1' },
+    { id: 'cobr',    label: 'Vix - Cobrança' },
+    { id: 'avarias', label: 'Vix - Avarias' },
   ],
   autocargas: [
     { id: 'autocarga', label: 'Auto Carga' },
+  ],
+  apafocoop: [
+    { id: 'apacoop', label: 'APACOOP' },
+    { id: 'afocoop', label: 'AFOCOOP' },
   ],
   demo: [
     { id: 'lets',    label: 'Carteira Principal' },
@@ -71,6 +77,7 @@ const ST_LETS = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixad
 const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
 const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
 const ST_AUTO = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
+const ST_APA  = ['Em andamento','Arquivado','Acordo fechado','Pré-processual','Sem êxito','Em tratativa']
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const TEMP_DELETE_KEY = 'roesel_temp_delete'
 
@@ -182,7 +189,7 @@ function ParcelasEditor({ parcelas, onChange }: { parcelas: Parcela[]; onChange:
         <span style={{ fontSize:10, fontWeight:700, color:'#7A919E', textTransform:'uppercase', letterSpacing:'.05em' }}>Parcelas do acordo ({parcelas.length})</span>
         <button onClick={addParcela} type="button" style={{ ...s.btnTeal, padding:'3px 10px', fontSize:11 }}>+ Parcela</button>
       </div>
-      {parcelas.length===0 && <p style={{ padding:'12px', fontSize:12, color:'#7A919E', margin:0 }}>Nenhuma parcela. Clique em + Parcela para adicionar.</p>}
+      {parcelas.length===0 && <p style={{ padding:'12px', fontSize:12, color:'#7A919E', margin:0 }}>Nenhuma parcela.</p>}
       {parcelas.map((p,i) => (
         <div key={i} style={{ display:'grid', gridTemplateColumns:'40px 1fr 1fr 80px 1fr 24px', gap:8, padding:'8px 12px', borderBottom:'1px solid #DDE5EA', alignItems:'center', background:p.pago?'#F0FFF4':p.dias_atraso&&p.dias_atraso>0?'#FFF5F5':'#fff' }}>
           <span style={{ fontSize:11, fontWeight:700, color:'#7A919E' }}>#{p.numero}</span>
@@ -265,21 +272,38 @@ export default function Home() {
   const [uploading, setUploading] = useState(false)
   const [tempDelete, setTempDeleteState] = useState<{ usuario: string; expira: number } | null>(null)
   const [permModal, setPermModal] = useState(false)
+  const [atualizando, setAtualizando] = useState(false)
+  const versaoRef = useRef<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
   const isDemo = empresa === 'demo'
+  const isApa  = tipo === 'apacoop' || tipo === 'afocoop'
+  const isAuto = tipo === 'autocarga'
   const tabs = TABS_POR_EMPRESA[empresa] || []
   const userInfo = Object.values(USUARIOS).find(u => u.nome===user)
   const empresasDoUsuario = userInfo?.empresas || [empresa]
-  const isAuto = tipo === 'autocarga'
   const podeExcluir = !isDemo && (user==='Claudiane' || (tempDelete?.usuario===user && Date.now()<(tempDelete?.expira||0)))
 
   useEffect(() => {
     const td = getTempDelete(); setTempDeleteState(td)
     const interval = setInterval(()=>setTempDeleteState(getTempDelete()), 60000)
     return ()=>clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const res = await fetch('/api/version', { cache: 'no-store' })
+        const { version } = await res.json()
+        if (!versaoRef.current) { versaoRef.current = version }
+        else if (versaoRef.current !== version) { setAtualizando(true); setTimeout(()=>window.location.reload(), 3000) }
+      } catch {}
+    }
+    checkVersion()
+    const interval = setInterval(checkVersion, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const concederPermissao = (nomeUsuario: string) => {
@@ -306,9 +330,25 @@ export default function Home() {
     setLogado(true)
   }
 
+  if (atualizando) return (
+    <div style={{ minHeight:'100vh', background:'#0097A8', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:"'DM Sans',sans-serif", gap:20 }}>
+      <img src="/logo.jpg" alt="Roesel" style={{ height:100, objectFit:'contain', filter:'brightness(0) invert(1)', opacity:.9 }} onError={e=>(e.currentTarget.style.display='none')}/>
+      <div style={{ textAlign:'center' }}>
+        <p style={{ color:'#fff', fontSize:22, fontWeight:700, margin:0 }}>Sistema sendo atualizado</p>
+        <p style={{ color:'rgba(255,255,255,.7)', fontSize:14, marginTop:8 }}>Aguarde, voltará em instantes...</p>
+      </div>
+      <div style={{ display:'flex', gap:8, marginTop:8 }}>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{ width:10, height:10, borderRadius:'50%', background:'rgba(255,255,255,.5)', animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite` }}/>
+        ))}
+      </div>
+      <style>{`@keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }`}</style>
+    </div>
+  )
+
   if (!logado) return <LoginScreen onLogin={handleLogin}/>
 
-  const stList = isAuto ? ST_AUTO : tipo==='lets'||tipo==='letspf' ? ST_LETS : tipo==='vix' ? ST_VIX : ST_COBR
+  const stList = isApa ? ST_APA : isAuto ? ST_AUTO : tipo==='lets'||tipo==='letspf' ? ST_LETS : tipo==='vix' ? ST_VIX : ST_COBR
   const mesesDisponiveis: string[] = isAuto
     ? Array.from(new Set(data.map(r=>r.data_sinistro).filter((m):m is string=>!!m))).sort()
     : []
@@ -317,8 +357,8 @@ export default function Home() {
     tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa:'',
     data_sinistro: isAuto?(fMes||''):'',
     danos:0, limite:0, devedor:'', telefone:'', saldo:0,
-    status: isAuto?'Em andamento':tipo==='lets'||tipo==='letspf'?'Em andamento':'Em tratativa',
-    fato_gerador: isAuto?'Cível':'Em tratativa', andamento:'', atualizado_por:user,
+    status: isApa?'Em andamento':isAuto?'Em andamento':tipo==='lets'||tipo==='letspf'?'Em andamento':'Em tratativa',
+    fato_gerador: isApa?'Cível':isAuto?'Cível':'Em tratativa', andamento:'', atualizado_por:user,
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
     data_envio:'', responsavel:'', cpf_cnpj:'', data_evento:'', email:'',
   })
@@ -402,21 +442,21 @@ export default function Home() {
         }
         await api.criar({
           tipo:uploadTipo, atualizado_por:user, parcelas:[],
-          placa:str(isPosMap?'':(row['placa']??row['Placa']??row['nº processo']??'')),
+          placa:str(isPosMap?'':(row['placa']??row['Placa']??row['nº processo']??row['Nº Processo']??'')),
           cliente:str(isPosMap?row.cliente:(row['cliente']??row['Cliente']??'')),
-          terceiro:str(isPosMap?row.terceiro:(row['terceiro']??row['Pólo da Demanda']??'')),
-          contato:str(isPosMap?row.contato:(row['contato']??row['Juízo']??'')),
+          terceiro:str(isPosMap?row.terceiro:(row['terceiro']??row['Pólo da Demanda']??row['Parte Adversa']??'')),
+          contato:str(isPosMap?row.contato:(row['contato']??row['Juízo']??row['Instância']??'')),
           empresa:str(isPosMap?'':(row['empresa']??row['Comarca/UF']??'')),
           email:str(isPosMap?row.email:(row['email']??row['Email']??'')),
           cpf_cnpj:str(isPosMap?row.cpf_cnpj:(row['cpf_cnpj']??row['CPF/CNPJ']??'')),
           data_sinistro,
-          danos:toNum(isPosMap?row.danos:(row['danos']??row['Valor da causa']??row['Vl. Título']??0)),
+          danos:toNum(isPosMap?row.danos:(row['danos']??row['Valor da causa']??row['Valor da Causa']??row['Vl. Título']??0)),
           saldo:toNum(isPosMap?row.saldo:(row['saldo']??row['Valor passivo de condenação']??row['Saldo']??0)),
           devedor:str(isPosMap?row.devedor:(row['devedor']??row['Parte Adversa']??row['Devedor']??'')),
           telefone:str(isPosMap?row.telefone:(row['telefone']??row['Telefone']??'')),
           status:str(isPosMap?'Em andamento':(row['status']??row['Status']??'Em andamento')),
           fato_gerador:str(isPosMap?'Cível':(row['fato_gerador']??row['Natureza']??row['Fato Gerador']??'Cível')),
-          andamento:str(isPosMap?row.andamento:(row['andamento']??row['Andamentos']??row['Observação']??'')),
+          andamento:str(isPosMap?row.andamento:(row['andamento']??row['Andamentos']??row['Informações extras']??row['Observação']??'')),
           responsavel:str(isPosMap?'':(row['responsavel']??row['Responsável']??'')),
           data_envio:'', data_evento:'', limite:0, data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
         } as any)
@@ -464,11 +504,13 @@ export default function Home() {
     if (tipo==='vix') return 'Devedores locatários · Carteira de cobrança VIX'
     if (tipo==='cobr') return 'Cobrança V1 · Terceiros'
     if (tipo==='autocarga') return `Processos judiciais · Auto Carga${fMes?' · '+mesLabel(fMes):''}`
+    if (tipo==='apacoop') return 'Processos judiciais · APACOOP'
+    if (tipo==='afocoop') return 'Processos judiciais · AFOCOOP'
     return 'Avarias V1 · Sinistros por terceiros'
   }
 
   const exportCSV = () => {
-    const keys = isAuto?['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','data_sinistro','andamento']:['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por','cpf_cnpj','email','responsavel','data_evento','data_envio']
+    const keys = isApa||isAuto?['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','andamento']:['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
@@ -541,7 +583,7 @@ export default function Home() {
               {l:'Acordo fechado',v:acFin,sv:'quitado'},
               {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
               {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
-              {l:'Pré-processuais',v:preProc,sv:'em curso'}
+              {l:'Arquivados',v:arq,sv:'encerrados'},
             ].map(({l,v,sv})=>(
               <div key={l} style={{background:'rgba(255,255,255,.15)',borderRadius:8,padding:'.65rem .9rem'}}>
                 <p style={{fontSize:10,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>{l}</p>
@@ -553,8 +595,8 @@ export default function Home() {
         </div>
 
         <div style={s.g4}>
-          <KPI l="Total de demandas" v={tot} sv={isDemo?'registros':tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
-          <KPI l="Valores a Receber" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
+          <KPI l="Total de processos" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
+          <KPI l="Valor da Causa Total" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
           <KPI l="Em andamento" v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
@@ -591,7 +633,19 @@ export default function Home() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
-                  {isAuto?<>
+                  {isApa?<>
+                    {th('Nº Processo')}
+                    {th('Parte Adversa')}
+                    {th('Pólo')}
+                    {th('Comarca/UF')}
+                    {th('Natureza')}
+                    {th('Instância')}
+                    {th('Valor da Causa')}
+                    {th('Dt. Distribuição')}
+                    {th('Status')}
+                    {th('Por')}
+                    {th('Andamento')}
+                  </>:isAuto?<>
                     {th('Nº Processo')}
                     {th('Parte Adversa')}
                     {th('Pólo')}
@@ -619,9 +673,7 @@ export default function Home() {
               </thead>
               <tbody>
                 {loading?<tr><td colSpan={20} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Carregando...</td></tr>
-                :filtered.length===0?<tr><td colSpan={20} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>
-                  {isDemo?'Acesse com um login ativo para visualizar os dados reais.':'Nenhuma demanda encontrada'}
-                </td></tr>
+                :filtered.length===0?<tr><td colSpan={20} style={{textAlign:'center',padding:'3rem',color:'#7A919E'}}>Nenhuma demanda encontrada</td></tr>
                 :filtered.map(r=>{
                   const stStyle=ST_MAP[r.status||'']||{bg:'#E0F5F7',color:'#0097A8'}
                   const empStyle=EMP_MAP[r.empresa||'']||{bg:'#EEF0F3',color:'#6B8090'}
@@ -629,7 +681,19 @@ export default function Home() {
                   const parc=r.parcelas||[]
                   const pagas=parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
-                    {isAuto?<>
+                    {isApa?<>
+                      <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E',whiteSpace:'nowrap',maxWidth:180,overflow:'hidden',textOverflow:'ellipsis'}}>{r.placa||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:160,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontWeight:500}}>{r.devedor||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.empresa||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.fato_gerador||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',maxWidth:120,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{r.contato||'—'}</td>
+                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.danos)}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_sinistro||'—'}</td>
+                      <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
+                      <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:280,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
+                    </>:isAuto?<>
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E',whiteSpace:'nowrap'}}>{r.placa||'—'}</td>
                       <td style={{padding:'7px 11px',maxWidth:160,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontWeight:500}}>{r.devedor||'—'}</td>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
@@ -748,10 +812,24 @@ export default function Home() {
         <div style={s.overlay} onClick={e=>e.target===e.currentTarget&&setModal(false)}>
           <div style={s.modal}>
             <div style={s.mhdr}>
-              <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}{isDemo?' (demonstração)':''}</h3>
+              <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}</h3>
               <button onClick={()=>setModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
-            {isAuto?(
+            {isApa?(
+              <div style={s.fg}>
+                <FormField lb="Nº Processo"><input style={{...s.fi,gridColumn:'1/-1'}} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
+                <FormField lb="Parte Adversa"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
+                <FormField lb="Pólo da Demanda"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
+                <FormField lb="Comarca/UF"><input style={s.fi} value={form.empresa||''} onChange={e=>set('empresa',e.target.value)}/></FormField>
+                <FormField lb="Natureza"><input style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}/></FormField>
+                <FormField lb="Instância"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
+                <FormField lb="Valor da Causa (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
+                <FormField lb="Dt. Distribuição"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro',maskDate(e.target.value))}/></FormField>
+                <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_APA.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
+                <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:160}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
+              </div>
+            ):isAuto?(
               <div style={s.fg}>
                 <FormField lb="Mês de Referência"><input style={s.fi} value={form.data_sinistro||''} placeholder="mm/aaaa" onChange={e=>set('data_sinistro',e.target.value)}/></FormField>
                 <FormField lb="Nº Processo"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
@@ -818,7 +896,7 @@ export default function Home() {
             )}
             <div style={s.mfoot}>
               <button onClick={()=>setModal(false)} style={{...s.btnOut,padding:'.5rem 1rem',fontSize:13}}>Fechar</button>
-              {!isDemo&&<button onClick={handleSave} disabled={saving} style={{...s.btnTeal,opacity:saving?0.6:1}}>{saving?'Salvando...':'Salvar'}</button>}
+              <button onClick={handleSave} disabled={saving} style={{...s.btnTeal,opacity:saving?0.6:1}}>{saving?'Salvando...':'Salvar'}</button>
             </div>
           </div>
         </div>
