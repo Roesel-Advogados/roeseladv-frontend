@@ -14,6 +14,7 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
   'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
   'danielle':  { senha: 'Danielle123', nome: 'Danielle',  empresas: ['apafocoop'] },
+  'inês':      { senha: 'Inês123',     nome: 'Inês',      empresas: ['apafocoop'] },
   'demo':      { senha: 'Demo123',     nome: 'Demo',      empresas: ['demo'] },
 }
 
