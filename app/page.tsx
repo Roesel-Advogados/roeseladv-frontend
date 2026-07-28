@@ -71,7 +71,7 @@ const EMP_MAP: Record<string, { bg: string; color: string }> = {
   'SALUTE': { bg:'#FEF5EB', color:'#E67E22' },
   'EBEC':   { bg:'#EAF3FD', color:'#2980B9' },
 }
-const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
+const FATOS    = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
 const ST_LETS   = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
 const ST_VIX    = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
 const ST_COBR   = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
@@ -435,7 +435,7 @@ export default function Home() {
         const isAutoUpload = uploadTipo==='autocarga'
         let data_sinistro = isAutoUpload?uploadMes:''
         if (!isAutoUpload) {
-          const dtRaw = isPosMap?row.data_sinistro:(row['data_sinistro']??row['Data Sinistro']??row['Dt. Vencimento']??row['Data ']??'')
+          const dtRaw = isPosMap?row.data_sinistro:(row['data_sinistro']??row['Data Sinistro']??row['Data ']??row['Dt. Vencimento']??'')
           if (dtRaw instanceof Date) data_sinistro=dtRaw.toLocaleDateString('pt-BR')
           else if (dtRaw) data_sinistro=str(dtRaw)
         }
@@ -445,7 +445,7 @@ export default function Home() {
           cliente:str(isPosMap?row.cliente:(row['cliente']??row['Cliente']??'UNIDAS')),
           terceiro:str(isPosMap?row.terceiro:(row['terceiro']??row['Placa 3º']??row['Pólo da Demanda']??row['Parte Adversa']??'')),
           cpf_cnpj:str(isPosMap?row.cpf_cnpj:(row['cpf_cnpj']??row['Chamado ']??row['Chamado']??row['CPF/CNPJ']??'')),
-          contato:str(isPosMap?row.contato:(row['contato']??row['Juízo']??row['Instância']??'')),
+          contato:str(isPosMap?row.contato:(row['contato']??row['PASTA']??row['Pasta']??row['Juízo']??row['Instância']??'')),
           empresa:str(isPosMap?'':(row['empresa']??row['Comarca/UF']??'')),
           email:str(isPosMap?row.email:(row['email']??row['Email']??'')),
           data_sinistro,
@@ -475,7 +475,7 @@ export default function Home() {
     if (fEmp&&r.empresa!==fEmp) return false
     if (fSt&&r.status!==fSt) return false
     if (isAuto&&fMes&&r.data_sinistro!==fMes) return false
-    if (search) { const q=search.toLowerCase(); if(![r.placa,r.terceiro,r.cpf_cnpj,r.andamento,r.status,r.devedor].some(f=>f?.toLowerCase().includes(q))) return false }
+    if (search) { const q=search.toLowerCase(); if(![r.placa,r.terceiro,r.cpf_cnpj,r.contato,r.andamento,r.status,r.devedor,r.cliente].some(f=>f?.toLowerCase().includes(q))) return false }
     return true
   })
 
@@ -513,7 +513,7 @@ export default function Home() {
 
   const exportCSV = () => {
     const keys = isUnidas
-      ? ['placa','terceiro','cpf_cnpj','data_sinistro','danos','valor_pago','saldo','status','andamento','atualizado_por']
+      ? ['placa','terceiro','cpf_cnpj','contato','data_sinistro','danos','valor_pago','saldo','status','andamento']
       : isApa||isAuto
         ? ['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','andamento']
         : ['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
@@ -645,7 +645,7 @@ export default function Home() {
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
                   {isUnidas?<>
-                    {th('Placa Unidas')}{th('Placa 3º')}{th('Chamado')}{th('Data')}{th('Valor Reparação')}{th('Valor Recebido')}{th('Valor Repasse')}{th('Status')}{th('Por')}{th('Observação')}
+                    {th('Placa Unidas')}{th('Placa 3º')}{th('Chamado')}{th('Pasta')}{th('Data')}{th('Valor Reparação')}{th('Valor Recebido')}{th('Valor Repasse')}{th('Status')}{th('Por')}{th('Observação')}
                   </>:isApa?<>
                     {th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Comarca/UF')}{th('Natureza')}{th('Instância')}{th('Valor da Causa')}{th('Dt. Distribuição')}{th('Status')}{th('Por')}{th('Andamento')}
                   </>:isAuto?<>
@@ -678,6 +678,7 @@ export default function Home() {
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:11,fontWeight:600,color:'#1A2B38'}}>{r.placa||'—'}</td>
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.cpf_cnpj||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#0097A8',fontWeight:600,textAlign:'center'}}>{r.contato||'—'}</td>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_sinistro||'—'}</td>
                       <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.danos)}</td>
                       <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600,color:'#27AE60'}}>{fmtN(r.valor_pago)}</td>
@@ -824,6 +825,7 @@ export default function Home() {
                 <FormField lb="Placa Unidas"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
                 <FormField lb="Chamado"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
+                <FormField lb="Pasta"><input style={s.fi} value={form.contato||''} onChange={e=>set('contato',e.target.value)}/></FormField>
                 <FormField lb="Data do Sinistro"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro',maskDate(e.target.value))}/></FormField>
                 <FormField lb="Valor Reparação (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
                 <FormField lb="Valor Recebido (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.valor_pago||''} placeholder="0,00" onChange={e=>set('valor_pago',e.target.value)} onBlur={e=>set('valor_pago',toNum(e.target.value))}/></FormField>
