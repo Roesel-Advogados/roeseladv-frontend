@@ -4,17 +4,17 @@ import { Plus, Search, Trash2, Download, X, Upload } from 'lucide-react'
 import { api, Demanda, Parcela, fmtR, fmtN } from './services/api'
 import * as XLSX from 'xlsx'
 
-type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias' | 'autocarga' | 'apacoop' | 'afocoop'
-type Empresa = 'roesel' | 'autocargas' | 'apafocoop' | 'demo'
+type Tipo = 'lets' | 'letspf' | 'vix' | 'cobr' | 'avarias' | 'autocarga' | 'apacoop' | 'afocoop' | 'unidas'
+type Empresa = 'roesel' | 'autocargas' | 'apafocoop' | 'unidas' | 'demo'
 
 const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[] }> = {
-  'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas', 'apafocoop'] },
-  'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas', 'apafocoop'] },
+  'claudiane': { senha: 'fifi15',      nome: 'Claudiane', empresas: ['roesel', 'autocargas', 'apafocoop', 'unidas'] },
+  'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas', 'apafocoop', 'unidas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
   'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
   'danielle':  { senha: 'Danielle123', nome: 'Danielle',  empresas: ['apafocoop'] },
-  'inês':      { senha: 'Inês123',     nome: 'Inês',      empresas: ['apafocoop'] },
+  'unidas':    { senha: 'Unidas2026',  nome: 'Unidas',    empresas: ['unidas'] },
   'demo':      { senha: 'Demo123',     nome: 'Demo',      empresas: ['demo'] },
 }
 
@@ -22,6 +22,7 @@ const EMPRESA_LABEL: Record<Empresa, string> = {
   roesel:    'VIX',
   autocargas:'AUTOCARGAS',
   apafocoop: 'APACOOP/AFOCOOP',
+  unidas:    'UNIDAS',
   demo:      'ROESEL',
 }
 
@@ -33,13 +34,9 @@ const TABS_POR_EMPRESA: Record<Empresa, { id: Tipo; label: string }[]> = {
     { id: 'cobr',    label: 'VIX - COBRANÇA' },
     { id: 'avarias', label: 'VIX - AVARIAS' },
   ],
-  autocargas: [
-    { id: 'autocarga', label: 'AUTO CARGA' },
-  ],
-  apafocoop: [
-    { id: 'apacoop', label: 'APACOOP' },
-    { id: 'afocoop', label: 'AFOCOOP' },
-  ],
+  autocargas: [{ id: 'autocarga', label: 'AUTO CARGA' }],
+  apafocoop:  [{ id: 'apacoop', label: 'APACOOP' }, { id: 'afocoop', label: 'AFOCOOP' }],
+  unidas:     [{ id: 'unidas', label: 'UNIDAS' }],
   demo: [
     { id: 'lets',    label: 'CARTEIRA PRINCIPAL' },
     { id: 'letspf',  label: 'CARTEIRA PF' },
@@ -64,6 +61,7 @@ const ST_MAP: Record<string, { bg: string; color: string }> = {
   'Pré-processual':           { bg:'#FEF5EB', color:'#E67E22' },
   'Pendente assinatura':      { bg:'#F4EEF9', color:'#8E44AD' },
   'Acordo em atraso':         { bg:'#FDECEA', color:'#E74C3C' },
+  'Aguardando pagamento':     { bg:'#EAF3FD', color:'#2980B9' },
   'Sem êxito':                { bg:'#FDECEA', color:'#C0392B' },
   'Baixado':                  { bg:'#EEF0F3', color:'#6B8090' },
   'Descumprimento de acordo': { bg:'#FDECEA', color:'#E74C3C' },
@@ -74,11 +72,12 @@ const EMP_MAP: Record<string, { bg: string; color: string }> = {
   'EBEC':   { bg:'#EAF3FD', color:'#2980B9' },
 }
 const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
-const ST_LETS = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
-const ST_VIX  = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
-const ST_COBR = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
-const ST_AUTO = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
-const ST_APA  = ['Em andamento','Arquivado','Acordo fechado','Pré-processual','Sem êxito','Em tratativa']
+const ST_LETS   = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
+const ST_VIX    = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
+const ST_COBR   = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
+const ST_AUTO   = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
+const ST_APA    = ['Em andamento','Arquivado','Acordo fechado','Pré-processual','Sem êxito','Em tratativa']
+const ST_UNIDAS = ['Em andamento','Aguardando pagamento','Acordo fechado','Pré-processual','Arquivado','Acordo em atraso','Devolvido','Sem êxito']
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const TEMP_DELETE_KEY = 'roesel_temp_delete'
 
@@ -279,9 +278,10 @@ export default function Home() {
 
   const showToast = (msg:string, ok=true) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000) }
 
-  const isDemo = empresa === 'demo'
-  const isApa  = tipo === 'apacoop' || tipo === 'afocoop'
-  const isAuto = tipo === 'autocarga'
+  const isDemo   = empresa === 'demo'
+  const isApa    = tipo === 'apacoop' || tipo === 'afocoop'
+  const isAuto   = tipo === 'autocarga'
+  const isUnidas = tipo === 'unidas'
   const tabs = TABS_POR_EMPRESA[empresa] || []
   const userInfo = Object.values(USUARIOS).find(u => u.nome===user)
   const empresasDoUsuario = userInfo?.empresas || [empresa]
@@ -349,17 +349,15 @@ export default function Home() {
 
   if (!logado) return <LoginScreen onLogin={handleLogin}/>
 
-  const stList = isApa ? ST_APA : isAuto ? ST_AUTO : tipo==='lets'||tipo==='letspf' ? ST_LETS : tipo==='vix' ? ST_VIX : ST_COBR
+  const stList = isUnidas ? ST_UNIDAS : isApa ? ST_APA : isAuto ? ST_AUTO : tipo==='lets'||tipo==='letspf' ? ST_LETS : tipo==='vix' ? ST_VIX : ST_COBR
   const mesesDisponiveis: string[] = isAuto
     ? Array.from(new Set(data.map(r=>r.data_sinistro).filter((m):m is string=>!!m))).sort()
     : []
 
   const blank = () => ({
-    tipo, placa:'', cliente:'', terceiro:'', contato:'', empresa:'',
-    data_sinistro: isAuto?(fMes||''):'',
-    danos:0, limite:0, devedor:'', telefone:'', saldo:0,
-    status: isApa?'Em andamento':isAuto?'Em andamento':tipo==='lets'||tipo==='letspf'?'Em andamento':'Em tratativa',
-    fato_gerador: isApa?'Cível':isAuto?'Cível':'Em tratativa', andamento:'', atualizado_por:user,
+    tipo, placa:'', cliente:'UNIDAS', terceiro:'', contato:'', empresa:'',
+    data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
+    status:'Em andamento', fato_gerador:'Em andamento', andamento:'', atualizado_por:user,
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
     data_envio:'', responsavel:'', cpf_cnpj:'', data_evento:'', email:'',
   })
@@ -385,7 +383,7 @@ export default function Home() {
     if (isDemo) { setModal(false); showToast('Modo demonstração — alterações não salvas',false); return }
     setSaving(true)
     try {
-      const payload = { ...form, atualizado_por:user, danos:toNum(form.danos), saldo:toNum(form.saldo), parcelas:parcelas.map((p:any)=>({...p,valor:toNum(p.valor)})) }
+      const payload = { ...form, atualizado_por:user, danos:toNum(form.danos), saldo:toNum(form.saldo), valor_pago:toNum(form.valor_pago), parcelas:parcelas.map((p:any)=>({...p,valor:toNum(p.valor)})) }
       if (editing) await api.atualizar(editing.id, payload)
       else await api.criar(payload)
       setModal(false); showToast(editing?'Atualizada!':'Criada!'); load()
@@ -437,29 +435,30 @@ export default function Home() {
         const isAutoUpload = uploadTipo==='autocarga'
         let data_sinistro = isAutoUpload?uploadMes:''
         if (!isAutoUpload) {
-          const dtRaw = isPosMap?row.data_sinistro:(row['data_sinistro']??row['Data Sinistro']??row['Dt. Vencimento']??'')
+          const dtRaw = isPosMap?row.data_sinistro:(row['data_sinistro']??row['Data Sinistro']??row['Dt. Vencimento']??row['Data ']??'')
           if (dtRaw instanceof Date) data_sinistro=dtRaw.toLocaleDateString('pt-BR')
           else if (dtRaw) data_sinistro=str(dtRaw)
         }
         await api.criar({
           tipo:uploadTipo, atualizado_por:user, parcelas:[],
-          placa:str(isPosMap?'':(row['placa']??row['Placa']??row['nº processo']??row['Nº Processo']??'')),
-          cliente:str(isPosMap?row.cliente:(row['cliente']??row['Cliente']??'')),
-          terceiro:str(isPosMap?row.terceiro:(row['terceiro']??row['Pólo da Demanda']??row['Parte Adversa']??'')),
+          placa:str(isPosMap?'':(row['placa']??row['Placa Unidas']??row['Placa']??row['nº processo']??row['Nº Processo']??'')),
+          cliente:str(isPosMap?row.cliente:(row['cliente']??row['Cliente']??'UNIDAS')),
+          terceiro:str(isPosMap?row.terceiro:(row['terceiro']??row['Placa 3º']??row['Pólo da Demanda']??row['Parte Adversa']??'')),
+          cpf_cnpj:str(isPosMap?row.cpf_cnpj:(row['cpf_cnpj']??row['Chamado ']??row['Chamado']??row['CPF/CNPJ']??'')),
           contato:str(isPosMap?row.contato:(row['contato']??row['Juízo']??row['Instância']??'')),
           empresa:str(isPosMap?'':(row['empresa']??row['Comarca/UF']??'')),
           email:str(isPosMap?row.email:(row['email']??row['Email']??'')),
-          cpf_cnpj:str(isPosMap?row.cpf_cnpj:(row['cpf_cnpj']??row['CPF/CNPJ']??'')),
           data_sinistro,
-          danos:toNum(isPosMap?row.danos:(row['danos']??row['Valor da causa']??row['Valor da Causa']??row['Vl. Título']??0)),
-          saldo:toNum(isPosMap?row.saldo:(row['saldo']??row['Valor passivo de condenação']??row['Saldo']??0)),
+          danos:toNum(isPosMap?row.danos:(row['danos']??row['Valor Reparação']??row['Valor da causa']??row['Vl. Título']??0)),
+          valor_pago:toNum(row['Valor Recebido ']??row['Valor Recebido']??0),
+          saldo:toNum(isPosMap?row.saldo:(row['saldo']??row['Valor de repasse']??row['Valor passivo de condenação']??0)),
           devedor:str(isPosMap?row.devedor:(row['devedor']??row['Parte Adversa']??row['Devedor']??'')),
           telefone:str(isPosMap?row.telefone:(row['telefone']??row['Telefone']??'')),
-          status:str(isPosMap?'Em andamento':(row['status']??row['Status']??'Em andamento')),
-          fato_gerador:str(isPosMap?'Cível':(row['fato_gerador']??row['Natureza']??row['Fato Gerador']??'Cível')),
-          andamento:str(isPosMap?row.andamento:(row['andamento']??row['Andamentos']??row['Informações extras']??row['Observação']??'')),
+          status:str(isPosMap?'Em andamento':(row['STATUS DO PROCESSO ']??row['status']??row['Status']??'Em andamento')),
+          fato_gerador:str(isPosMap?'Em andamento':(row['fato_gerador']??row['Natureza']??row['Fato Gerador']??'Em andamento')),
+          andamento:str(isPosMap?row.andamento:(row['andamento']??row['OBSERVAÇÃO']??row['Andamentos']??row['Observação']??'')),
           responsavel:str(isPosMap?'':(row['responsavel']??row['Responsável']??'')),
-          data_envio:'', data_evento:'', limite:0, data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
+          data_envio:'', data_evento:'', limite:0, data_vencimento:'', data_pagamento:'', pago:false,
         } as any)
         ok++
       } catch { err++ }
@@ -476,7 +475,7 @@ export default function Home() {
     if (fEmp&&r.empresa!==fEmp) return false
     if (fSt&&r.status!==fSt) return false
     if (isAuto&&fMes&&r.data_sinistro!==fMes) return false
-    if (search) { const q=search.toLowerCase(); if(![r.placa,r.cliente,r.terceiro,r.devedor,r.telefone,r.andamento,r.cpf_cnpj,r.email,r.contato].some(f=>f?.toLowerCase().includes(q))) return false }
+    if (search) { const q=search.toLowerCase(); if(![r.placa,r.terceiro,r.cpf_cnpj,r.andamento,r.status,r.devedor].some(f=>f?.toLowerCase().includes(q))) return false }
     return true
   })
 
@@ -486,6 +485,7 @@ export default function Home() {
   const totVal=data.reduce((s,r)=>s+(r.danos||0),0)
   const totalPagoMes=data.reduce((s,r)=>{ const somaParcMes=(r.parcelas||[]).filter(p=>p.pago&&p.data_pagamento?.slice(3)===mesAtual).reduce((a,p)=>a+(p.valor||0),0); const pagoDireto=r.pago&&r.data_pagamento?.slice(3)===mesAtual?(r.valor_pago||0):0; return s+somaParcMes+pagoDireto },0)
   const totalPago=data.reduce((s,r)=>{ const sp=(r.parcelas||[]).filter(p=>p.pago).reduce((a,p)=>a+(p.valor||0),0); return s+(r.pago?(r.valor_pago||0):0)+sp },0)
+  const totalRecebido=data.reduce((s,r)=>s+(r.valor_pago||0),0)
   const ea=data.filter(r=>r.status==='Em andamento'||r.status==='Em tratativa').length
   const acFin=data.filter(r=>r.status==='Acordo fechado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
   const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
@@ -507,11 +507,16 @@ export default function Home() {
     if (tipo==='autocarga') return `Processos judiciais · Auto Carga${fMes?' · '+mesLabel(fMes):''}`
     if (tipo==='apacoop') return 'Processos judiciais · APACOOP'
     if (tipo==='afocoop') return 'Processos judiciais · AFOCOOP'
+    if (tipo==='unidas') return 'Controle de sinistros · UNIDAS'
     return 'Avarias V1 · Sinistros por terceiros'
   }
 
   const exportCSV = () => {
-    const keys = isApa||isAuto?['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','andamento']:['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
+    const keys = isUnidas
+      ? ['placa','terceiro','cpf_cnpj','data_sinistro','danos','valor_pago','saldo','status','andamento','atualizado_por']
+      : isApa||isAuto
+        ? ['placa','devedor','terceiro','contato','empresa','fato_gerador','danos','saldo','status','andamento']
+        : ['placa','cliente','terceiro','contato','empresa','data_sinistro','danos','devedor','telefone','saldo','status','fato_gerador','andamento','atualizado_por']
     const rows=[keys.join(';'),...filtered.map(r=>keys.map(k=>`"${(r as any)[k]??''}"`).join(';'))]
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));a.download=`${tipo}_${new Date().toISOString().slice(0,10)}.csv`;a.click()
   }
@@ -580,12 +585,17 @@ export default function Home() {
             <p style={{fontSize:11,color:'rgba(255,255,255,.6)',marginTop:4}}>encerrados ou em execução</p>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,flex:1}}>
-            {[
+            {(isUnidas ? [
+              {l:'Acordo fechado',v:acFin,sv:'quitado'},
+              {l:'Total recebido',v:fmtR(totalRecebido),sv:'valor recebido'},
+              {l:'Valor reparação',v:fmtR(totVal),sv:'soma dos danos'},
+              {l:'Arquivados',v:arq,sv:'encerrados'},
+            ] : [
               {l:'Acordo fechado',v:acFin,sv:'quitado'},
               {l:'Pago este mês',v:fmtR(totalPagoMes),sv:'recebido no mês'},
               {l:'Total já pago',v:fmtR(totalPago),sv:'soma de pagamentos'},
               {l:'Arquivados',v:arq,sv:'encerrados'},
-            ].map(({l,v,sv})=>(
+            ]).map(({l,v,sv})=>(
               <div key={l} style={{background:'rgba(255,255,255,.15)',borderRadius:8,padding:'.65rem .9rem'}}>
                 <p style={{fontSize:10,color:'rgba(255,255,255,.6)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:2}}>{l}</p>
                 <p style={{fontSize:18,fontWeight:700,color:'#fff'}}>{v}</p>
@@ -597,7 +607,7 @@ export default function Home() {
 
         <div style={s.g4}>
           <KPI l="Total de processos" v={tot} sv={tipo==='lets'?`LETS ${empC.LETS} · SAL ${empC.SALUTE} · EBC ${empC.EBEC}`:`${tot} registros`} c="#0097A8"/>
-          <KPI l="Valor da Causa Total" v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
+          <KPI l={isUnidas?"Valor total reparação":"Valor da Causa Total"} v={fmtR(totVal)} sv="soma dos valores" c="#E67E22"/>
           <KPI l="Em andamento" v={ea} sv={`${Math.round(ea/Math.max(1,tot)*100)}% do total`} c="#2980B9"/>
           <KPI l="Acordos/Quitados" v={acFin} sv="pagamentos confirmados" c="#27AE60"/>
         </div>
@@ -634,7 +644,9 @@ export default function Home() {
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
               <thead style={{position:'sticky',top:0,zIndex:2}}>
                 <tr style={{background:'#FAFCFD',borderBottom:'2px solid #DDE5EA'}}>
-                  {isApa?<>
+                  {isUnidas?<>
+                    {th('Placa Unidas')}{th('Placa 3º')}{th('Chamado')}{th('Data')}{th('Valor Reparação')}{th('Valor Recebido')}{th('Valor Repasse')}{th('Status')}{th('Por')}{th('Observação')}
+                  </>:isApa?<>
                     {th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Comarca/UF')}{th('Natureza')}{th('Instância')}{th('Valor da Causa')}{th('Dt. Distribuição')}{th('Status')}{th('Por')}{th('Andamento')}
                   </>:isAuto?<>
                     {th('Nº Processo')}{th('Parte Adversa')}{th('Pólo')}{th('Juízo')}{th('Comarca/UF')}{th('Natureza')}{th('Valor da Causa')}{th('Valor Passivo')}{th('Status')}{th('Por')}{th('Andamento')}
@@ -662,7 +674,18 @@ export default function Home() {
                   const parc=r.parcelas||[]
                   const pagas=parc.filter(p=>p.pago).length
                   return <tr key={r.id} onClick={()=>openEdit(r.id)} style={{borderBottom:'1px solid #DDE5EA',cursor:'pointer'}} onMouseEnter={e=>(e.currentTarget.style.background='#F0F7F9')} onMouseLeave={e=>(e.currentTarget.style.background='')}>
-                    {isApa?<>
+                    {isUnidas?<>
+                      <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:11,fontWeight:600,color:'#1A2B38'}}>{r.placa||'—'}</td>
+                      <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.cpf_cnpj||'—'}</td>
+                      <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E',whiteSpace:'nowrap'}}>{r.data_sinistro||'—'}</td>
+                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600}}>{fmtN(r.danos)}</td>
+                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600,color:'#27AE60'}}>{fmtN(r.valor_pago)}</td>
+                      <td style={{padding:'7px 11px',textAlign:'right',fontWeight:600,color:'#E74C3C'}}>{fmtN(r.saldo)}</td>
+                      <td style={{padding:'7px 11px'}}><Badge label={r.status||'—'} bg={stStyle.bg} color={stStyle.color}/></td>
+                      <td style={{padding:'7px 11px',color:'#7A919E',fontSize:11}}>{r.atualizado_por||'—'}</td>
+                      <td style={{padding:'7px 11px',maxWidth:280,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',color:'#7A919E',fontSize:11}} title={r.andamento||''}>{r.andamento||'—'}</td>
+                    </>:isApa?<>
                       <td style={{padding:'7px 11px',fontFamily:'monospace',fontSize:10,color:'#7A919E',whiteSpace:'nowrap',maxWidth:180,overflow:'hidden',textOverflow:'ellipsis'}}>{r.placa||'—'}</td>
                       <td style={{padding:'7px 11px',maxWidth:160,overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',fontWeight:500}}>{r.devedor||'—'}</td>
                       <td style={{padding:'7px 11px',fontSize:11,color:'#7A919E'}}>{r.terceiro||'—'}</td>
@@ -796,7 +819,20 @@ export default function Home() {
               <h3 style={{fontSize:15,fontWeight:700}}>{editing?'Editar':'Nova'} demanda — {tabLabel}</h3>
               <button onClick={()=>setModal(false)} style={{background:'none',border:'none',cursor:'pointer',color:'#7A919E'}}><X size={20}/></button>
             </div>
-            {isApa?(
+            {isUnidas?(
+              <div style={s.fg}>
+                <FormField lb="Placa Unidas"><input style={s.fi} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
+                <FormField lb="Placa 3º"><input style={s.fi} value={form.terceiro||''} onChange={e=>set('terceiro',e.target.value)}/></FormField>
+                <FormField lb="Chamado"><input style={s.fi} value={form.cpf_cnpj||''} onChange={e=>set('cpf_cnpj',e.target.value)}/></FormField>
+                <FormField lb="Data do Sinistro"><input style={s.fi} value={form.data_sinistro||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_sinistro',maskDate(e.target.value))}/></FormField>
+                <FormField lb="Valor Reparação (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.danos||''} placeholder="0,00" onChange={e=>set('danos',e.target.value)} onBlur={e=>set('danos',toNum(e.target.value))}/></FormField>
+                <FormField lb="Valor Recebido (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.valor_pago||''} placeholder="0,00" onChange={e=>set('valor_pago',e.target.value)} onBlur={e=>set('valor_pago',toNum(e.target.value))}/></FormField>
+                <FormField lb="Valor Repasse (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
+                <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{ST_UNIDAS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
+                <div style={{gridColumn:'1/-1'}}><FormField lb="Observação"><textarea style={{...s.fi,resize:'vertical',minHeight:120}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
+              </div>
+            ):isApa?(
               <div style={s.fg}>
                 <FormField lb="Nº Processo"><input style={{...s.fi,gridColumn:'1/-1'}} value={form.placa||''} onChange={e=>set('placa',e.target.value)}/></FormField>
                 <FormField lb="Parte Adversa"><input style={s.fi} value={form.devedor||''} onChange={e=>set('devedor',e.target.value)}/></FormField>
