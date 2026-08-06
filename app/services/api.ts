@@ -110,8 +110,9 @@ function processRow(r: any): Demanda {
 
 export const api = {
   async listar(tipo: string): Promise<Demanda[]> {
+    const order = tipo === 'unidas' ? 'contato.asc' : 'atualizado_em.desc'
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/demandas?tipo=eq.${tipo}&order=atualizado_em.desc`,
+      `${SUPA_URL}/rest/v1/demandas?tipo=eq.${tipo}&order=${order}`,
       { headers: H }
     )
     if (!res.ok) throw new Error(await res.text())
