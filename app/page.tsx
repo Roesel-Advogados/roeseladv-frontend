@@ -15,7 +15,6 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
   'danielle':  { senha: 'Danielle123', nome: 'Danielle',  empresas: ['apafocoop'] },
   'unidas':    { senha: 'Unidas2026',  nome: 'Unidas',    empresas: ['unidas'] },
-  'sinistro':    { senha: 'Sinistro123',  nome: 'Sinistro',    empresas: ['unidas'] },
   'demo':      { senha: 'Demo123',     nome: 'Demo',      empresas: ['demo'] },
 }
 
@@ -52,33 +51,39 @@ const DEMO_DATA: Record<string, Demanda[]> = {
 }
 
 const ST_MAP: Record<string, { bg: string; color: string }> = {
-  'Em andamento':             { bg:'#E0F5F7', color:'#0097A8' },
-  'Em tratativa':             { bg:'#E0F5F7', color:'#0097A8' },
-  'Acordo fechado':           { bg:'#EAF7EE', color:'#27AE60' },
-  'Débito quitado':           { bg:'#EAF7EE', color:'#27AE60' },
-  'Arquivado':                { bg:'#EEF0F3', color:'#6B8090' },
-  'Acordo liquidado':         { bg:'#EAF7EE', color:'#27AE60' },
-  'Devolvido':                { bg:'#FEF5EB', color:'#E67E22' },
-  'Pré-processual':           { bg:'#FEF5EB', color:'#E67E22' },
-  'Pendente assinatura':      { bg:'#F4EEF9', color:'#8E44AD' },
-  'Acordo em atraso':         { bg:'#FDECEA', color:'#E74C3C' },
-  'Aguardando pagamento':     { bg:'#EAF3FD', color:'#2980B9' },
-  'Sem êxito':                { bg:'#FDECEA', color:'#C0392B' },
-  'Baixado':                  { bg:'#EEF0F3', color:'#6B8090' },
-  'Descumprimento de acordo': { bg:'#FDECEA', color:'#E74C3C' },
+  'Em andamento':                    { bg:'#E0F5F7', color:'#0097A8' },
+  'Em tratativa':                    { bg:'#E0F5F7', color:'#0097A8' },
+  'Em contato com terceiro':         { bg:'#E0F5F7', color:'#0097A8' },
+  'Em contato com a seguradora':     { bg:'#E0F5F7', color:'#0097A8' },
+  'Acordo fechado':                  { bg:'#EAF7EE', color:'#27AE60' },
+  'Acordo em andamento':             { bg:'#EAF7EE', color:'#27AE60' },
+  'Acordo pago':                     { bg:'#EAF7EE', color:'#27AE60' },
+  'Débito quitado':                  { bg:'#EAF7EE', color:'#27AE60' },
+  'Acordo liquidado':                { bg:'#EAF7EE', color:'#27AE60' },
+  'Arquivado':                       { bg:'#EEF0F3', color:'#6B8090' },
+  'Arquivado por culpa do locatário':{ bg:'#EEF0F3', color:'#6B8090' },
+  'Baixado':                         { bg:'#EEF0F3', color:'#6B8090' },
+  'Devolvido':                       { bg:'#FEF5EB', color:'#E67E22' },
+  'Pré-processual':                  { bg:'#FEF5EB', color:'#E67E22' },
+  'Pendente assinatura':             { bg:'#F4EEF9', color:'#8E44AD' },
+  'Acordo em atraso':                { bg:'#FDECEA', color:'#E74C3C' },
+  'Aguardando pagamento':            { bg:'#EAF3FD', color:'#2980B9' },
+  'Aguardando pagamento Unidas':     { bg:'#EAF3FD', color:'#2980B9' },
+  'Sem êxito':                       { bg:'#FDECEA', color:'#C0392B' },
+  'Descumprimento de acordo':        { bg:'#FDECEA', color:'#E74C3C' },
 }
 const EMP_MAP: Record<string, { bg: string; color: string }> = {
   'LETS':   { bg:'#FDECEA', color:'#E74C3C' },
   'SALUTE': { bg:'#FEF5EB', color:'#E67E22' },
   'EBEC':   { bg:'#EAF3FD', color:'#2980B9' },
 }
-const FATOS    = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
-const ST_LETS   = ['Em andamento','Acordo fechado','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
-const ST_VIX    = ['Em tratativa','Débito quitado','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
-const ST_COBR   = ['Em tratativa','Acordo fechado','Acordo liquidado','Arquivado','Sem êxito']
-const ST_AUTO   = ['Em andamento','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
-const ST_APA    = ['Em andamento','Arquivado','Acordo fechado','Pré-processual','Sem êxito','Em tratativa']
-const ST_UNIDAS = ['Em andamento','Aguardando pagamento','Acordo fechado','Pré-processual','Arquivado','Acordo em atraso','Devolvido','Sem êxito']
+const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
+const ST_LETS   = ['Em andamento','Acordo fechado','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
+const ST_VIX    = ['Em tratativa','Débito quitado','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
+const ST_COBR   = ['Em tratativa','Acordo fechado','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Acordo liquidado','Arquivado','Sem êxito']
+const ST_AUTO   = ['Em andamento','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Pré-processual','Acordo fechado','Arquivado','Sem êxito','Em tratativa']
+const ST_APA    = ['Em andamento','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Arquivado','Acordo fechado','Pré-processual','Sem êxito','Em tratativa']
+const ST_UNIDAS = ['Em andamento','Aguardando pagamento','Aguardando pagamento Unidas','Acordo fechado','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Pré-processual','Arquivado','Arquivado por culpa do locatário','Acordo em atraso','Devolvido','Sem êxito']
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 const TEMP_DELETE_KEY = 'roesel_temp_delete'
 
@@ -488,14 +493,14 @@ export default function Home() {
   const totalPago=data.reduce((s,r)=>{ const sp=(r.parcelas||[]).filter(p=>p.pago).reduce((a,p)=>a+(p.valor||0),0); return s+(r.pago?(r.valor_pago||0):0)+sp },0)
   const totalRecebido=data.reduce((s,r)=>s+(r.valor_pago||0),0)
   const ea=data.filter(r=>r.status==='Em andamento'||r.status==='Em tratativa').length
-  const acFin=data.filter(r=>r.status==='Acordo fechado'||r.status==='Débito quitado'||r.status==='Acordo liquidado').length
-  const acAnd=data.filter(r=>/acordo.*parcela/i.test(r.andamento||'')).length
+  const acFin=data.filter(r=>['Acordo fechado','Débito quitado','Acordo liquidado','Acordo pago'].includes(r.status||'')).length
+  const acAnd=data.filter(r=>r.status==='Acordo em andamento').length
   const semEx=data.filter(r=>r.status==='Sem êxito').length
   const preProc=data.filter(r=>r.status==='Pré-processual').length
   const notif=data.filter(r=>/notificação extrajudicial/i.test(r.andamento||'')).length
-  const segur=data.filter(r=>/seguradora/i.test(r.andamento||'')).length
-  const arq=data.filter(r=>r.status==='Arquivado').length
-  const culpa=data.filter(r=>/culpa do locat/i.test(r.andamento||'')).length
+  const segur=data.filter(r=>r.status==='Em contato com a seguradora').length
+  const arq=data.filter(r=>r.status==='Arquivado'||r.status==='Arquivado por culpa do locatário').length
+  const culpa=data.filter(r=>r.status==='Arquivado por culpa do locatário').length
   const empC={LETS:data.filter(r=>r.empresa==='LETS').length,SALUTE:data.filter(r=>r.empresa==='SALUTE').length,EBEC:data.filter(r=>r.empresa==='EBEC').length}
 
   const tabLabel = tabs.find(t=>t.id===tipo)?.label||''
