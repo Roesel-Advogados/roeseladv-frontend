@@ -110,14 +110,21 @@ function processRow(r: any): Demanda {
 
 export const api = {
   async listar(tipo: string): Promise<Demanda[]> {
-    const order = tipo === 'unidas' ? 'contato.asc' : 'atualizado_em.desc'
     const res = await fetch(
-      `${SUPA_URL}/rest/v1/demandas?tipo=eq.${tipo}&order=${order}`,
+      `${SUPA_URL}/rest/v1/demandas?tipo=eq.${tipo}&order=atualizado_em.desc`,
       { headers: H }
     )
     if (!res.ok) throw new Error(await res.text())
     const data = await res.json()
-    return data.map(processRow)
+    const rows = data.map(processRow)
+    if (tipo === 'unidas') {
+      rows.sort((a: Demanda, b: Demanda) => {
+        const na = parseInt(a.contato || '0') || 0
+        const nb = parseInt(b.contato || '0') || 0
+        return na - nb
+      })
+    }
+    return rows
   },
 
   async buscar(id: number): Promise<Demanda> {
