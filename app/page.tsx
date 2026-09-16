@@ -12,9 +12,12 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas', 'apafocoop', 'unidas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
-  'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
+  'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas', 'unidas'] },
   'danielle':  { senha: 'Danielle123', nome: 'Danielle',  empresas: ['apafocoop'] },
   'unidas':    { senha: 'Unidas2026',  nome: 'Unidas',    empresas: ['unidas'] },
+  'inês':      { senha: 'Inês123',     nome: 'Inês',      empresas: ['apafocoop'] },
+  'mayara':     { senha: 'Mayara123',    nome: 'Mayara',     empresas: ['roesel',  'unidas'] },
+  'wilker':     { senha: 'Wilker123',    nome: 'Wilker',     empresas: ['roesel',  'unidas'] },
   'demo':      { senha: 'Demo123',     nome: 'Demo',      empresas: ['demo'] },
 }
 
