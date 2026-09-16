@@ -12,12 +12,9 @@ const USUARIOS: Record<string, { senha: string; nome: string; empresas: Empresa[
   'fabiana':   { senha: '1803',        nome: 'Fabiana',   empresas: ['roesel', 'autocargas', 'apafocoop', 'unidas'] },
   'vix':       { senha: 'Vix2026',     nome: 'Vix',       empresas: ['roesel'] },
   'andressa':  { senha: 'Andressa321', nome: 'Andressa',  empresas: ['autocargas'] },
-  'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas', 'unidas'] },
+  'bruno':     { senha: 'bruno123',    nome: 'Bruno',     empresas: ['roesel', 'autocargas'] },
   'danielle':  { senha: 'Danielle123', nome: 'Danielle',  empresas: ['apafocoop'] },
   'unidas':    { senha: 'Unidas2026',  nome: 'Unidas',    empresas: ['unidas'] },
-  'inês':      { senha: 'Inês123',     nome: 'Inês',      empresas: ['apafocoop'] },
-  'mayara':     { senha: 'Mayara123',    nome: 'Mayara',     empresas: ['roesel',  'unidas'] },
-  'wilker':     { senha: 'Wilker123',    nome: 'Wilker',     empresas: ['roesel',  'unidas'] },
   'demo':      { senha: 'Demo123',     nome: 'Demo',      empresas: ['demo'] },
 }
 
@@ -80,7 +77,8 @@ const EMP_MAP: Record<string, { bg: string; color: string }> = {
   'SALUTE': { bg:'#FEF5EB', color:'#E67E22' },
   'EBEC':   { bg:'#EAF3FD', color:'#2980B9' },
 }
-const FATOS = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
+const FATOS      = ['Em tratativa','Culpa do locatário','Falta de documentação','Pré-processual','Acordo finalizado','Acordo em andamento','Tratativa c/ seguradora','Notif. extrajudicial','Arquivamento sugerido','Sem êxito']
+const FATOS_COBR = ['Km excedente','Multa de trânsito','Mensalidade','Encerramento de contrato','Avarias','Estacionamento']
 const ST_LETS   = ['Em andamento','Acordo fechado','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Arquivado','Devolvido','Baixado','Descumprimento de acordo']
 const ST_VIX    = ['Em tratativa','Débito quitado','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Pré-processual','Pendente assinatura','Acordo em atraso','Arquivado','Sem êxito']
 const ST_COBR   = ['Em tratativa','Acordo fechado','Acordo em andamento','Acordo pago','Em contato com a seguradora','Em contato com terceiro','Arquivado por culpa do locatário','Acordo liquidado','Arquivado','Sem êxito']
@@ -359,6 +357,7 @@ export default function Home() {
   if (!logado) return <LoginScreen onLogin={handleLogin}/>
 
   const stList = isUnidas ? ST_UNIDAS : isApa ? ST_APA : isAuto ? ST_AUTO : tipo==='lets'||tipo==='letspf' ? ST_LETS : tipo==='vix' ? ST_VIX : ST_COBR
+  const fatosAtivos = tipo==='cobr' ? FATOS_COBR : FATOS
   const mesesDisponiveis: string[] = isAuto
     ? Array.from(new Set(data.map(r=>r.data_sinistro).filter((m):m is string=>!!m))).sort()
     : []
@@ -366,7 +365,8 @@ export default function Home() {
   const blank = () => ({
     tipo, placa:'', cliente:'UNIDAS', terceiro:'', contato:'', empresa:'',
     data_sinistro:'', danos:0, limite:0, devedor:'', telefone:'', saldo:0,
-    status:'Em andamento', fato_gerador:'Em andamento', andamento:'', atualizado_por:user,
+    status:'Em andamento', fato_gerador: tipo==='cobr' ? 'Km excedente' : 'Em andamento',
+    andamento:'', atualizado_por:user,
     data_vencimento:'', valor_pago:0, data_pagamento:'', pago:false,
     data_envio:'', responsavel:'', cpf_cnpj:'', data_evento:'', email:'',
   })
@@ -917,7 +917,7 @@ export default function Home() {
                 <FormField lb="Data de Envio"><input style={s.fi} value={form.data_envio||''} placeholder="dd/mm/aaaa" onChange={e=>set('data_envio',maskDate(e.target.value))}/></FormField>
                 <FormField lb="Valores a Receber (R$)"><input type="text" inputMode="decimal" style={s.fi} value={form.saldo||''} placeholder="0,00" onChange={e=>set('saldo',e.target.value)} onBlur={e=>set('saldo',toNum(e.target.value))}/></FormField>
                 <FormField lb="Status"><select style={s.fi} value={form.status||''} onChange={e=>set('status',e.target.value)}>{stList.map(x=><option key={x}>{x}</option>)}</select></FormField>
-                <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{FATOS.map(x=><option key={x}>{x}</option>)}</select></FormField>
+                <FormField lb="Fato Gerador"><select style={s.fi} value={form.fato_gerador||''} onChange={e=>set('fato_gerador',e.target.value)}>{fatosAtivos.map(x=><option key={x}>{x}</option>)}</select></FormField>
                 <ParcelasEditor parcelas={parcelas} onChange={setParcelas}/>
                 <div style={{gridColumn:'1/-1'}}><FormField lb="Andamento"><textarea style={{...s.fi,resize:'vertical',minHeight:90}} value={form.andamento||''} onChange={e=>set('andamento',e.target.value)}/></FormField></div>
               </div>
